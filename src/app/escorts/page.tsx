@@ -19,7 +19,7 @@ export default function EscortsList() {
     setLoading(true);
     const { data, error } = await supabaseAuth
       .from('escort_missions')
-      .select('*, patients(name)')
+      .select('*, customers(name)')
       .order('created_at', { ascending: false });
     
     if (data) {
@@ -64,7 +64,7 @@ export default function EscortsList() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Patient</th>
+                <th>Customer</th>
                 <th>Route</th>
                 <th>Flight Date</th>
                 <th>Assigned Escort</th>
@@ -82,7 +82,7 @@ export default function EscortsList() {
               ) : missions.length > 0 ? (
                 missions.map(mission => (
                   <tr key={mission.id}>
-                    <td style={{ fontWeight: 500 }}>{mission.patients?.name || 'Unknown Patient'}</td>
+                    <td style={{ fontWeight: 500 }}>{mission.customers?.name || 'Unknown Customer'}</td>
                     <td>{mission.from_country} {mission.layover_country ? '→ ' + mission.layover_country + ' ' : ''}→ {mission.to_country}</td>
                     <td>{mission.flight_date || 'TBD'}</td>
                     <td>{mission.employee_name || mission.escort_employee_iqama || 'Unassigned'}</td>
@@ -145,8 +145,8 @@ export default function EscortsList() {
                 <h3 style={{ fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', margin: '0 0 12px 0', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>Assignment Info</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Patient Name</div>
-                    <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>{viewMission.patients?.name || 'Unknown'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Customer Name</div>
+                    <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>{viewMission.customers?.name || 'Unknown'}</div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Assigned Escort</div>

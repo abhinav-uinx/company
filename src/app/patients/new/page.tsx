@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../patients.module.css';
+import styles from '../customers.module.css';
 
-export default function AddPatient() {
+export default function AddCustomer() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
@@ -45,14 +45,14 @@ export default function AddPatient() {
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
 
-    const { error } = await supabaseAuth.from('patients').insert([cleanData]);
+    const { error } = await supabaseAuth.from('customers').insert([cleanData]);
 
     if (error) {
-      setMsg({ text: 'Error adding patient: ' + error.message, type: 'error' });
+      setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
     } else {
-      setMsg({ text: 'Patient added successfully! Redirecting...', type: 'success' });
+      setMsg({ text: 'Customer added successfully! Redirecting...', type: 'success' });
       setTimeout(() => {
-        router.push('/patients');
+        router.push('/customers');
       }, 1500);
     }
     setLoading(false);
@@ -60,12 +60,12 @@ export default function AddPatient() {
 
   return (
     <div className={styles.container}>
-      <Link href="/patients" className={styles.backBtn}>
-        <span className="material-symbols-outlined">arrow_back</span> Back to Patients
+      <Link href="/customers" className={styles.backBtn}>
+        <span className="material-symbols-outlined">arrow_back</span> Back to Customers
       </Link>
       
       <div className={styles.header}>
-        <h1 className={styles.title}>Add New Patient</h1>
+        <h1 className={styles.title}>Add New Customer</h1>
       </div>
 
       <div className={styles.card}>
@@ -144,7 +144,7 @@ export default function AddPatient() {
           {msg.text && <div className={`${styles.message} ${styles[msg.type]}`}>{msg.text}</div>}
           
           <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Patient Profile'}
+            {loading ? 'Saving...' : 'Save Customer Profile'}
           </button>
         </form>
       </div>

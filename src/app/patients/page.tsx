@@ -3,33 +3,33 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from './patients.module.css';
+import styles from './customers.module.css';
 import LoadingIcon from '@/components/LoadingIcon';
 
-export default function PatientsList() {
-  const [patients, setPatients] = useState<any[]>([]);
+export default function CustomersList() {
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
-  const [viewPatient, setViewPatient] = useState<any>(null);
+  const [viewCustomer, setViewCustomer] = useState<any>(null);
   const [fullscreenFile, setFullscreenFile] = useState<any>(null);
 
   useEffect(() => {
-    fetchPatients();
+    fetchCustomers();
   }, []);
 
-  async function fetchPatients() {
+  async function fetchCustomers() {
     setLoading(true);
     const { data, error } = await supabaseAuth
-      .from('patients')
+      .from('customers')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (data) setPatients(data);
+    if (data) setCustomers(data);
     setLoading(false);
   }
 
-  const filteredPatients = patients.filter(p => 
+  const filteredCustomers = customers.filter(p => 
     (p.name && p.name.toLowerCase().includes(search.toLowerCase())) ||
     (p.passport_no && p.passport_no.toLowerCase().includes(search.toLowerCase())) ||
     (p.nationality && p.nationality.toLowerCase().includes(search.toLowerCase()))
@@ -45,7 +45,7 @@ export default function PatientsList() {
         await navigator.share({
           files: [fileObj],
           title: file.name,
-          text: 'Patient Passport Document'
+          text: 'Customer Passport Document'
         });
       } else {
         const link = document.createElement('a');
@@ -63,10 +63,10 @@ export default function PatientsList() {
   };
 
   // Helper to safely parse passport photos from stringified JSON
-  const getPassports = (patient: any) => {
-    if (!patient || !patient.passport_photo_url) return [];
+  const getPassports = (customer: any) => {
+    if (!customer || !customer.passport_photo_url) return [];
     try {
-      return JSON.parse(patient.passport_photo_url);
+      return JSON.parse(customer.passport_photo_url);
     } catch (e) {
       return [];
     }
@@ -80,9 +80,9 @@ export default function PatientsList() {
       </Link>
       
       <div className={styles.header}>
-        <h1 className={styles.title}>Patient Management</h1>
-        <Link href="/patients/new" className={styles.addBtn}>
-          <span className="material-symbols-outlined">person_add</span> Add New Patient
+        <h1 className={styles.title}>Customer Management</h1>
+        <Link href="/customers/new" className={styles.addBtn}>
+          <span className="material-symbols-outlined">person_add</span> Add New Customer
         </Link>
       </div>
 
@@ -100,7 +100,7 @@ export default function PatientsList() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Patient Name</th>
+              <th>Customer Name</th>
               <th>Nationality</th>
               <th>Passport No</th>
               <th>Contact</th>
@@ -114,22 +114,22 @@ export default function PatientsList() {
                   <LoadingIcon />
                 </td>
               </tr>
-            ) : filteredPatients.length > 0 ? (
-              filteredPatients.map(patient => (
-                <tr key={patient.id}>
-                  <td style={{ fontWeight: 500 }}>{patient.name}</td>
-                  <td>{patient.nationality || 'N/A'}</td>
-                  <td>{patient.passport_no || 'N/A'}</td>
-                  <td>{patient.contact_number || 'N/A'}</td>
+            ) : filteredCustomers.length > 0 ? (
+              filteredCustomers.map(customer => (
+                <tr key={customer.id}>
+                  <td style={{ fontWeight: 500 }}>{customer.name}</td>
+                  <td>{customer.nationality || 'N/A'}</td>
+                  <td>{customer.passport_no || 'N/A'}</td>
+                  <td>{customer.contact_number || 'N/A'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
-                        onClick={() => setViewPatient(patient)}
+                        onClick={() => setViewCustomer(customer)}
                         style={{ background: '#f1f5f9', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 500 }}
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span> View
                       </button>
-                      <Link href={`/patients/${patient.id}`} style={{ background: '#eff6ff', color: '#2563eb', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
+                      <Link href={`/customers/${customer.id}`} style={{ background: '#eff6ff', color: '#2563eb', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span> Edit
                       </Link>
                     </div>
@@ -139,7 +139,7 @@ export default function PatientsList() {
             ) : (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                  No patients found.
+                  No customers found.
                 </td>
               </tr>
             )}
@@ -148,18 +148,18 @@ export default function PatientsList() {
       </div>
     </div>
 
-    {/* View Patient Modal */}
-    {viewPatient && (
+    {/* View Customer Modal */}
+    {viewCustomer && (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }} className="hide-scrollbar">
           
           {/* Header */}
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#ffffff', zIndex: 10 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>{viewPatient.name}</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b' }}>Patient Profile</p>
+              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>{viewCustomer.name}</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b' }}>Customer Profile</p>
             </div>
-            <button onClick={() => setViewPatient(null)} style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
+            <button onClick={() => setViewCustomer(null)} style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
             </button>
           </div>
@@ -174,15 +174,15 @@ export default function PatientsList() {
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Date of Birth</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.dob || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.dob || 'N/A'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Nationality</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.nationality || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.nationality || 'N/A'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Passport Number</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.passport_no || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.passport_no || 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -195,19 +195,19 @@ export default function PatientsList() {
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Phone Number</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.contact_number || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.contact_number || 'N/A'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Emergency Contact</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.emergency_contact_name || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.emergency_contact_name || 'N/A'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Emergency Phone</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.emergency_contact_phone || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.emergency_contact_phone || 'N/A'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Physical Address</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{viewPatient.address || 'N/A'}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{viewCustomer.address || 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -221,12 +221,12 @@ export default function PatientsList() {
               <div style={{ display: 'grid', gap: '12px' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Current Hospital</div>
-                  <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewPatient.current_hospital || 'N/A'}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewCustomer.current_hospital || 'N/A'}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Medical Condition</div>
                   <div style={{ color: '#0f172a', background: '#fff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px', minHeight: '60px' }}>
-                    {viewPatient.medical_condition || 'No details provided.'}
+                    {viewCustomer.medical_condition || 'No details provided.'}
                   </div>
                 </div>
               </div>
@@ -238,9 +238,9 @@ export default function PatientsList() {
               Passport Documents
             </div>
             
-            {getPassports(viewPatient).length > 0 ? (
+            {getPassports(viewCustomer).length > 0 ? (
               <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                {getPassports(viewPatient).map((file: any, i: number) => (
+                {getPassports(viewCustomer).map((file: any, i: number) => (
                   <div 
                     key={i} 
                     onClick={() => setFullscreenFile(file)}
@@ -282,8 +282,8 @@ export default function PatientsList() {
           </div>
           
           <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
-            <Link href={`/patients/${viewPatient.id}`} style={{ background: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit Patient
+            <Link href={`/customers/${viewCustomer.id}`} style={{ background: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit Customer
             </Link>
           </div>
         </div>

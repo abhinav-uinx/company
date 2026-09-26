@@ -20,7 +20,7 @@ export default function InvoicesList() {
     setLoading(true);
     const { data, error } = await supabaseAuth
       .from('invoices')
-      .select('*, patients(name)')
+      .select('*, customers(name)')
       .order('created_at', { ascending: false });
     
     if (data) setInvoices(data);
@@ -52,7 +52,7 @@ export default function InvoicesList() {
             <thead>
               <tr>
                 <th>Invoice ID</th>
-                <th>Patient Name</th>
+                <th>Customer Name</th>
                 <th>Total Amount</th>
                 <th>Advance</th>
                 <th>Balance</th>
@@ -71,7 +71,7 @@ export default function InvoicesList() {
                 invoices.map(inv => (
                   <tr key={inv.id}>
                     <td>{inv.id.substring(0, 8)}...</td>
-                    <td style={{ fontWeight: 500 }}>{inv.patients?.name || 'Unknown Patient'}</td>
+                    <td style={{ fontWeight: 500 }}>{inv.customers?.name || 'Unknown Customer'}</td>
                     <td>${inv.total_amount}</td>
                     <td>${inv.advance_payment}</td>
                     <td style={{ color: inv.balance_amount > 0 ? '#ef4444' : '#166534', fontWeight: 600 }}>

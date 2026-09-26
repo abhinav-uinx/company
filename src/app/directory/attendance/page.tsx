@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../../patients/patients.module.css';
+import styles from '../../customers/customers.module.css';
 
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState<any[]>([]);

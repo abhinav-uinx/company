@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Cookies from 'js-cookie';
-import { supabaseAuth } from '@/lib/supabase';
+import { getSession, checkAuthStatus, logout } from '@/app/actions/auth';
 import LoadingIcon from '@/components/LoadingIcon';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -14,24 +13,24 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const currentStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const loggedInUser = Cookies.get('loggedInUser');
-    const role = Cookies.get('userRole');
     const isPublicRoute = pathname === '/login';
 
-    if (!loggedInUser) {
-      if (!isPublicRoute) {
-        router.replace('/login');
-      } else {
-        setIsChecking(false);
-      }
-      return;
-    }
-
-    // Initial Auth Check
     const checkAuth = async () => {
-      const table = role === 'admin' ? 'admins' : 'employees';
-      const idField = role === 'admin' ? 'username' : 'iqama_number';
-      const { data } = await supabaseAuth.from(table).select('status, permissions').eq(idField, loggedInUser).single();
+      const session = await getSession();
+      const loggedInUser = session?.username;
+      const role = session?.role;
+
+      if (!loggedInUser || !role) {
+        if (!isPublicRoute) {
+          router.replace('/login');
+        } else {
+          setIsChecking(false);
+        }
+        return;
+      }
+
+      // Check permissions on the server
+      const data = await checkAuthStatus(loggedInUser as string, role as string);
       
       if (data) {
         currentStatusRef.current = data.status;
@@ -39,8 +38,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
       if (data && data.status === 'disabled') {
         setIsDisabled(true);
-        Cookies.remove('loggedInUser');
-        Cookies.remove('userRole');
+        await logout();
         setIsChecking(false);
         return;
       }
@@ -48,12 +46,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (isPublicRoute || pathname === '/') {
         router.replace('/dashboard');
       } else {
-        
         let allowed = true;
         if (role !== 'admin') {
           const perms = data?.permissions || [];
           if (pathname.startsWith('/directory')) allowed = false;
-          else if (pathname.startsWith('/patients') && !perms.includes('patients')) allowed = false;
+          else if (pathname.startsWith('/customers') && !perms.includes('customers')) allowed = false;
           else if (pathname.startsWith('/escorts') && !perms.includes('escorts')) allowed = false;
           else if (pathname.startsWith('/documentation') && !perms.includes('documentation')) allowed = false;
           else if (pathname.startsWith('/invoices') && !perms.includes('invoices')) allowed = false;
@@ -65,46 +62,47 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         } else {
           setIsChecking(false);
         }
-
       }
     };
+    
     checkAuth();
   }, [pathname, router]);
 
-  // Live Status Polling for Real-Time Toast Updates
+  // Live Status Polling
   useEffect(() => {
-    const loggedInUser = Cookies.get('loggedInUser');
-    const role = Cookies.get('userRole');
-    if (!loggedInUser) return;
+    let interval: NodeJS.Timeout;
+    
+    const startPolling = async () => {
+      const session = await getSession();
+      if (!session) return;
+      const { username, role } = session;
 
-    const interval = setInterval(async () => {
-      const table = role === 'admin' ? 'admins' : 'employees';
-      const idField = role === 'admin' ? 'username' : 'iqama_number';
-      const { data } = await supabaseAuth.from(table).select('status').eq(idField, loggedInUser).single();
-      
-      if (data && currentStatusRef.current && data.status !== currentStatusRef.current) {
-        const newStatus = data.status;
-        currentStatusRef.current = newStatus;
+      interval = setInterval(async () => {
+        const data = await checkAuthStatus(username as string, role as string);
+        if (data && currentStatusRef.current && data.status !== currentStatusRef.current) {
+          const newStatus = data.status;
+          currentStatusRef.current = newStatus;
 
-        let msg = 'Permission changed to Full Access';
-        if (newStatus === 'disabled') {
-          msg = 'Account Disabled. Please contact admin.';
-          setIsDisabled(true);
-          Cookies.remove('loggedInUser');
-          Cookies.remove('userRole');
-        } else if (newStatus === 'view_only') {
-          msg = 'Permission changed to View Only';
+          let msg = 'Permission changed to Full Access';
+          if (newStatus === 'disabled') {
+            msg = 'Account Disabled. Please contact admin.';
+            setIsDisabled(true);
+            await logout();
+          } else if (newStatus === 'view_only') {
+            msg = 'Permission changed to View Only';
+          }
+          
+          setLiveToast({ show: true, message: msg, type: newStatus });
+          setTimeout(() => {
+            setLiveToast(t => ({ ...t, show: false }));
+          }, 4000);
+        } else if (data && !currentStatusRef.current) {
+           currentStatusRef.current = data.status;
         }
-        
-        setLiveToast({ show: true, message: msg, type: newStatus });
-        setTimeout(() => {
-          setLiveToast(t => ({ ...t, show: false }));
-        }, 4000);
-      } else if (data && !currentStatusRef.current) {
-         currentStatusRef.current = data.status;
-      }
-    }, 2000); // Check every 2 seconds for a "live" feel without complex web socket setup
+      }, 5000); // Polling every 5 seconds to reduce server load
+    };
 
+    startPolling();
     return () => clearInterval(interval);
   }, []);
 

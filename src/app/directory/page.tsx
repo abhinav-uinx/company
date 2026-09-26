@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Cookies from 'js-cookie';
+import { getSession, logout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
@@ -25,16 +25,18 @@ export default function Directory() {
   const [newDeptId, setNewDeptId] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPermission, setNewPermission] = useState('active');
-  const [newPermissions, setNewPermissions] = useState(['patients', 'escorts', 'documentation', 'invoices', 'reports']);
+  const [newPermissions, setNewPermissions] = useState(['customers', 'escorts', 'documentation', 'invoices', 'reports']);
   const [deptList, setDeptList] = useState<any[]>([]);
   const [addMsg, setAddMsg] = useState({ type: '', text: '' });
   
   useEffect(() => {
-    const loggedInUser = Cookies.get('loggedInUser');
-    const role = Cookies.get('userRole');
-    setUserRole(role || String());
 
     const fetchUser = async () => {
+      const session = await getSession();
+      if (!session) { router.replace('/login'); return; }
+      const loggedInUser = session.username as string;
+      const role = session.role as string;
+      setUserRole(role || '');
       const { data } = await supabaseAuth.from('admins').select('*').eq('username', loggedInUser).single();
       if (data) setUserName(data.name || data.username || loggedInUser);
     };
@@ -67,9 +69,9 @@ export default function Directory() {
     await supabaseAuth.from('employees').update({ status }).eq('iqama_number', iqama);
   };
 
-  const handleLogout = () => {
-    Cookies.remove('loggedInUser');
-    Cookies.remove('userRole');
+  const handleLogout = async () => {
+    await logout();
+    
     router.replace('/login');
   };
 
@@ -303,7 +305,7 @@ export default function Directory() {
               <div className="form-group">
                 <label>Module Access Permissions</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-                  {['patients', 'escorts', 'documentation', 'invoices', 'reports'].map(mod => (
+                  {['customers', 'escorts', 'documentation', 'invoices', 'reports'].map(mod => (
                     <label key={mod} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400 }}>
                       <input 
                         type="checkbox" 
@@ -327,3 +329,5 @@ export default function Directory() {
     </>
   );
 }
+
+

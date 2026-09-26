@@ -1,9 +1,8 @@
 'use client';
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabaseAuth } from '@/lib/supabase';
-import Cookies from 'js-cookie';
 import LoadingIcon from '@/components/LoadingIcon';
+import { login } from '@/app/actions/auth';
 
 function LoginContent() {
   const router = useRouter();
@@ -12,9 +11,7 @@ function LoginContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-
+  const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,49 +19,12 @@ function LoginContent() {
     setError('');
 
     try {
-      const inputVal = username.trim();
-
-      // 1. Check Admins
-      let { data: adminMatch } = await supabaseAuth.from('admins').select('*').eq('username', inputVal).eq('password', password).single();
-      if (!adminMatch) {
-        let res = await supabaseAuth.from('admins').select('*').eq('email', inputVal).eq('password', password).single();
-        adminMatch = res.data;
-      }
-
-      if (adminMatch) {
-        if (adminMatch.status === 'disabled') {
-          setError('Account disabled. Please contact admin.');
-          setLoading(false);
-          return;
-        }
-        Cookies.set('loggedInUser', adminMatch.username, { expires: 7 });
-        Cookies.set('userRole', 'admin', { expires: 7 });
-        await supabaseAuth.from('admins').update({ last_login: new Date().toISOString() }).eq('username', adminMatch.username);
+      const res = await login(username, password);
+      if (res.success) {
         router.replace('/dashboard');
-        return;
+      } else {
+        setError(res.error || 'Invalid credentials');
       }
-
-      // 2. Check Employees
-      let { data: empMatch } = await supabaseAuth.from('employees').select('*').eq('iqama_number', inputVal).eq('password', password).single();
-      if (!empMatch) {
-        let res = await supabaseAuth.from('employees').select('*').eq('email', inputVal).eq('password', password).single();
-        empMatch = res.data;
-      }
-
-      if (empMatch) {
-        if (empMatch.status === 'disabled') {
-          setError('Account disabled. Please contact admin.');
-          setLoading(false);
-          return;
-        }
-        Cookies.set('loggedInUser', empMatch.iqama_number, { expires: 7 });
-        Cookies.set('userRole', 'employee', { expires: 7 });
-        await supabaseAuth.from('employees').update({ last_login: new Date().toISOString() }).eq('iqama_number', empMatch.iqama_number);
-        router.replace('/dashboard');
-        return;
-      }
-
-      setError('Invalid Email/Username or Password!');
     } catch (err) {
       console.error(err);
       setError('An error occurred during login.');
@@ -146,7 +106,7 @@ function LoginContent() {
         <div className="logo">C</div>
         <h2>Portal Login</h2>
         {searchParams.get('disabled') && (
-          <div className="error" style={{marginBottom: '15px'}}>Account disabled. Please contact admin. Contact Admin.</div>
+          <div className="error" style={{marginBottom: '15px'}}>Account disabled. Please contact admin.</div>
         )}
         <form onSubmit={handleLogin} suppressHydrationWarning>
             <div className="form-group">
@@ -158,7 +118,7 @@ function LoginContent() {
                 <div style={{ position: 'relative' }}>
                   <input 
                     type={showPassword ? 'text' : 'password'} 
-                    placeholder="••••••••" 
+                    placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" 
                     required 
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
@@ -196,3 +156,4 @@ function LoginContent() {
 export default function Login() {
   return <Suspense fallback={<LoadingIcon />}><LoginContent /></Suspense>;
 }
+

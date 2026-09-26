@@ -12,11 +12,11 @@ export default function AddEscortMission() {
   const [hasLayover, setHasLayover] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   
-  const [patients, setPatients] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
-    patient_id: '',
+    customer_id: '',
     from_country: '',
     to_country: '',
     layover_country: '',
@@ -35,11 +35,12 @@ export default function AddEscortMission() {
 
   useEffect(() => {
     async function loadDropdowns() {
+      const { data: sData } = await supabaseAuth.from('services').select('id').eq('name', 'Medical Escort').single();
       const [pRes, eRes] = await Promise.all([
-        supabaseAuth.from('patients').select('id, name'),
+        supabaseAuth.from('customers').select('id, name').eq('service', sData?.id),
         supabaseAuth.from('employees').select('iqama_number, name').eq('status', 'active')
       ]);
-      if (pRes.data) setPatients(pRes.data);
+      if (pRes.data) setCustomers(pRes.data);
       if (eRes.data) setEmployees(eRes.data);
     }
     loadDropdowns();
@@ -57,8 +58,8 @@ export default function AddEscortMission() {
     const cleanData = { ...formData };
     if (!cleanData.escort_required_date) delete (cleanData as any).escort_required_date;
     if (!cleanData.flight_date) delete (cleanData as any).flight_date;
-    if (!cleanData.patient_id) {
-      setMsg({ text: 'Please select a patient', type: 'error' });
+    if (!cleanData.customer_id) {
+      setMsg({ text: 'Please select a customer', type: 'error' });
       setLoading(false);
       return;
     }
@@ -92,10 +93,10 @@ export default function AddEscortMission() {
           <div className={styles.formSection}>Mission Details</div>
           
           <div className={styles.formGroup}>
-            <label>Select Patient *</label>
-            <select name="patient_id" required value={formData.patient_id} onChange={handleChange}>
-              <option value="">-- Choose Patient --</option>
-              {patients.map(p => (
+            <label>Select Customer *</label>
+            <select name="customer_id" required value={formData.customer_id} onChange={handleChange}>
+              <option value="">-- Choose Customer --</option>
+              {customers.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>

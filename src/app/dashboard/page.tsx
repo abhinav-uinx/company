@@ -93,12 +93,12 @@ export default function Dashboard() {
 
         <div className="service-grid">
 
-          <div className="service-card" onClick={() => router.push('/patients')} style={{ cursor: 'pointer' }}>
+          <div className="service-card" onClick={() => router.push('/customers')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
               <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>person</span>
             </div>
             <h3>Patient Management</h3>
-            <Link className="service-open group" href="/patients"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            <Link className="service-open group" href="/customers"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
           </div>
 
           <div className="service-card" onClick={() => router.push('/escorts')} style={{ cursor: 'pointer' }}>

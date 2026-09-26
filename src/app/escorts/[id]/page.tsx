@@ -17,11 +17,11 @@ export default function EditEscortMission() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   
-  const [patients, setPatients] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
-    patient_id: '',
+    customer_id: '',
     from_country: '',
     to_country: '',
     layover_country: '',
@@ -42,16 +42,16 @@ export default function EditEscortMission() {
     async function loadData() {
       setLoading(true);
       const [pRes, eRes, mRes] = await Promise.all([
-        supabaseAuth.from('patients').select('id, name'),
+        supabaseAuth.from('customers').select('id, name, services!inner(name)').eq('services.name', 'Medical Escort'),
         supabaseAuth.from('employees').select('iqama_number, name').eq('status', 'active'),
         supabaseAuth.from('escort_missions').select('*').eq('id', id).single()
       ]);
       
-      if (pRes.data) setPatients(pRes.data);
+      if (pRes.data) setCustomers(pRes.data);
       if (eRes.data) setEmployees(eRes.data);
       if (mRes.data) {
         setFormData({
-          patient_id: mRes.data.patient_id || '',
+          customer_id: mRes.data.customer_id || '',
           from_country: mRes.data.from_country || '',
           to_country: mRes.data.to_country || '',
           layover_country: mRes.data.layover_country || '',
@@ -118,10 +118,10 @@ export default function EditEscortMission() {
           <div className={styles.formSection}>Mission Details</div>
           
           <div className={styles.formGroup}>
-            <label>Select Patient *</label>
-            <select name="patient_id" required value={formData.patient_id} onChange={handleChange}>
-              <option value="">-- Choose Patient --</option>
-              {patients.map(p => (
+            <label>Select Customer *</label>
+            <select name="customer_id" required value={formData.customer_id} onChange={handleChange}>
+              <option value="">-- Choose Customer --</option>
+              {customers.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>

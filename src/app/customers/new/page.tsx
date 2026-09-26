@@ -1,0 +1,199 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabaseAuth } from '@/lib/supabase';
+import styles from '../customers.module.css';
+
+export default function AddCustomer() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState({ text: '', type: '' });
+  const [services, setServices] = useState<any[]>([]);
+  const [docServices, setDocServices] = useState<any[]>([]);
+  useEffect(() => {
+    async function fetchServices() {
+      const { data } = await supabaseAuth.from('services').select('*');
+      if (data) setServices(data);
+    }
+    fetchServices();
+  }, []);
+  
+  const [formData, setFormData] = useState({
+    service: '',
+    service_type: [] as string[],
+    iqama_number: '',
+    name: '',
+    nationality: '',
+    dob: '',
+    contact_number: '',
+    email: '',
+    address: '',
+    passport_no: '',
+    passport_expiry: '',
+    visa_no: '',
+    visa_type: '',
+    visa_expiry: '',
+    visa_country: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    medical_condition: '',
+    current_hospital: ''
+  });
+
+  const handleChange = (e: any) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMsg({ text: '', type: '' });
+
+    // Handle empty date strings passing to date columns
+    const cleanData = { ...formData };
+    if (!cleanData.dob) delete (cleanData as any).dob;
+    if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
+    if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
+
+    const { error } = await supabaseAuth.from('customers').insert([cleanData]);
+
+    if (error) {
+      setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
+    } else {
+      setMsg({ text: 'Customer added successfully! Redirecting...', type: 'success' });
+      setTimeout(() => {
+        router.push('/customers');
+      }, 1500);
+    }
+    setLoading(false);
+  };
+
+  const selectedService = services.find(s => s.id === formData.service);
+  const isGeneral = selectedService && selectedService.name === 'General Service';
+
+  return (
+    <div className={styles.container}>
+      <Link href="/customers" className={styles.backBtn}>
+        <span className="material-symbols-outlined">arrow_back</span> Back to Customers
+      </Link>
+      
+      <div className={styles.header}>
+        <h1 className={styles.title}>Add New Customer</h1>
+      </div>
+
+      <div className={styles.card}>
+        <form onSubmit={handleSubmit} className={styles.formGrid}>
+          
+          <div className={styles.formSection}>Basic Information</div>
+          <div className={styles.formGroup}>
+              <label>Iqama Number</label>
+              <input type="text" name="iqama_number" value={formData.iqama_number || ''} onChange={handleChange} />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Full Name *</label>
+            <input type="text" name="name" required value={formData.name} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Nationality</label>
+            <input type="text" name="nationality" value={formData.nationality} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Date of Birth</label>
+            <input type="date" name="dob" value={formData.dob} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Contact Number</label>
+            <input type="text" name="contact_number" value={formData.contact_number} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Email Address</label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Physical Address</label>
+            <textarea name="address" rows={2} value={formData.address} onChange={handleChange}></textarea>
+          </div>
+
+          <div className={styles.formSection}>Service Type</div>
+          <div className={styles.formGroup}>
+            <label>Select Service *</label>
+            <select name="service" required value={formData.service} onChange={(e) => setFormData({...formData, service: e.target.value})}>
+              <option value="">-- Select Service --</option>
+              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+            {isGeneral && (
+              <div className={styles.formGroup}>
+                <label>Documentation Services (Hold Ctrl/Cmd for multiple)</label>
+                <select multiple name="service_type" value={formData.service_type || []} onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                  setFormData({...formData, service_type: selected});
+                }} style={{ height: '80px' }}>
+                  {docServices.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+
+          <div className={styles.formSection}>Passport & Visa Details</div>
+          <div className={styles.formGroup}>
+            <label>Passport Number</label>
+            <input type="text" name="passport_no" value={formData.passport_no} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Passport Expiry</label>
+            <input type="date" name="passport_expiry" value={formData.passport_expiry} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Visa Number</label>
+            <input type="text" name="visa_no" value={formData.visa_no} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Visa Type</label>
+            <input type="text" name="visa_type" value={formData.visa_type} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Visa Country</label>
+            <input type="text" name="visa_country" value={formData.visa_country} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Visa Expiry</label>
+            <input type="date" name="visa_expiry" value={formData.visa_expiry} onChange={handleChange} />
+          </div>
+
+          <div className={styles.formSection}>Medical & Emergency</div>
+          <div className={styles.formGroup}>
+            <label>Emergency Contact Name</label>
+            <input type="text" name="emergency_contact_name" value={formData.emergency_contact_name} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Emergency Contact Phone</label>
+            <input type="text" name="emergency_contact_phone" value={formData.emergency_contact_phone} onChange={handleChange} />
+          </div>
+          {!isGeneral && (
+              <>
+            <div className={styles.formGroup}>
+              <label>Current Hospital</label>
+            <input type="text" name="current_hospital" value={formData.current_hospital} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Medical Condition</label>
+            <textarea name="medical_condition" rows={2} value={formData.medical_condition} onChange={handleChange}></textarea>
+            </div>
+            </>
+          )}
+
+            {msg.text && <div className={`${styles.message} ${styles[msg.type]}`}>{msg.text}</div>}
+          
+          <button type="submit" className={styles.submitBtn} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Customer Profile'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

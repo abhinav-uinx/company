@@ -9,11 +9,11 @@ import styles from '../invoices.module.css';
 export default function CreateInvoice() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
-    patient_id: '',
+    customer_id: '',
     mission_id: '',
     medical_escort_charges: 0,
     ticket_charges: 0,
@@ -27,10 +27,10 @@ export default function CreateInvoice() {
   useEffect(() => {
     async function loadData() {
       const [pRes, mRes] = await Promise.all([
-        supabaseAuth.from('patients').select('id, name'),
-        supabaseAuth.from('escort_missions').select('id, patient_id, from_country, to_country')
+        supabaseAuth.from('customers').select('id, name'),
+        supabaseAuth.from('escort_missions').select('id, customer_id, from_country, to_country')
       ]);
-      if (pRes.data) setPatients(pRes.data);
+      if (pRes.data) setCustomers(pRes.data);
       if (mRes.data) setMissions(mRes.data);
     }
     loadData();
@@ -61,7 +61,7 @@ export default function CreateInvoice() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.patient_id) return alert('Select Patient');
+    if (!formData.customer_id) return alert('Select Customer');
 
     setLoading(true);
     const payload = {
@@ -90,7 +90,7 @@ export default function CreateInvoice() {
     }
   };
 
-  const filteredMissions = formData.patient_id ? missions.filter(m => m.patient_id === formData.patient_id) : [];
+  const filteredMissions = formData.customer_id ? missions.filter(m => m.customer_id === formData.customer_id) : [];
 
   return (
     <div className={styles.container}>
@@ -108,10 +108,10 @@ export default function CreateInvoice() {
           <div className={styles.formSection}>Client Details</div>
           
           <div className={styles.formGroup}>
-            <label>Select Patient *</label>
-            <select name="patient_id" required value={formData.patient_id} onChange={handleChange}>
-              <option value="">-- Choose Patient --</option>
-              {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <label>Select Customer *</label>
+            <select name="customer_id" required value={formData.customer_id} onChange={handleChange}>
+              <option value="">-- Choose Customer --</option>
+              {customers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
 

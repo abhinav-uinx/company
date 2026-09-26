@@ -10,16 +10,19 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
+    "jose": "^6.2.12",
     "js-cookie": "^3.0.8",
     "next": "14.2.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/ua-parser-js": "^0.7.39",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",

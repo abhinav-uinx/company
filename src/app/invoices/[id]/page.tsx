@@ -17,7 +17,7 @@ export default function InvoiceDetail() {
   useEffect(() => {
     async function loadInvoice() {
       const [invRes, payRes] = await Promise.all([
-        supabaseAuth.from('invoices').select('*, patients(name, address), escort_missions(from_country, to_country)').eq('id', id).single(),
+        supabaseAuth.from('invoices').select('*, customers(name, address), escort_missions(from_country, to_country)').eq('id', id).single(),
         supabaseAuth.from('payment_history').select('*').eq('invoice_id', id).order('payment_date', { ascending: false })
       ]);
       if (invRes.data) setInvoice(invRes.data);
@@ -65,8 +65,8 @@ export default function InvoiceDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
           <div>
             <h4 style={{ color: '#0f172a', marginBottom: '10px' }}>Bill To:</h4>
-            <p style={{ margin: '0 0 5px', fontWeight: 600 }}>{invoice.patients?.name}</p>
-            <p style={{ margin: 0, color: '#64748b', whiteSpace: 'pre-line' }}>{invoice.patients?.address || 'No Address Provided'}</p>
+            <p style={{ margin: '0 0 5px', fontWeight: 600 }}>{invoice.customers?.name}</p>
+            <p style={{ margin: 0, color: '#64748b', whiteSpace: 'pre-line' }}>{invoice.customers?.address || 'No Address Provided'}</p>
           </div>
           {invoice.escort_missions && (
             <div style={{ textAlign: 'right' }}>

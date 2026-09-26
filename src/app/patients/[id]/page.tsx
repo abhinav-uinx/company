@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../patients.module.css';
+import styles from '../customers.module.css';
 import LoadingIcon from '@/components/LoadingIcon';
 
-export default function PatientDetail() {
+export default function CustomerDetail() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const [patient, setPatient] = useState<any>(null);
+  const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
@@ -19,10 +19,10 @@ export default function PatientDetail() {
   const [fullscreenFile, setFullscreenFile] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchPatient() {
+    async function fetchCustomer() {
       if (!id) return;
-      const { data } = await supabaseAuth.from('patients').select('*').eq('id', id).single();
-      setPatient(data);
+      const { data } = await supabaseAuth.from('customers').select('*').eq('id', id).single();
+      setCustomer(data);
       if (data.passport_photo_url) {
         try {
           const parsed = JSON.parse(data.passport_photo_url);
@@ -33,7 +33,7 @@ export default function PatientDetail() {
       }
       setLoading(false);
     }
-    fetchPatient();
+    fetchCustomer();
   }, [id]);
 
   
@@ -63,7 +63,7 @@ export default function PatientDetail() {
         await navigator.share({
           files: [fileObj],
           title: file.name,
-          text: 'Patient Passport Document'
+          text: 'Customer Passport Document'
         });
       } else {
         const link = document.createElement('a');
@@ -85,7 +85,7 @@ export default function PatientDetail() {
   };
   
   const handleChange = (e: any) => {
-    setPatient({ ...patient, [e.target.name]: e.target.value });
+    setCustomer({ ...customer, [e.target.name]: e.target.value });
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -93,33 +93,33 @@ export default function PatientDetail() {
     setSaving(true);
     setMsg({ text: '', type: '' });
     
-    const cleanData = { ...patient, passport_photo_url: JSON.stringify(uploads) };
+    const cleanData = { ...customer, passport_photo_url: JSON.stringify(uploads) };
     if (!cleanData.dob) delete (cleanData as any).dob;
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
 
-    const { error } = await supabaseAuth.from('patients').update(cleanData).eq('id', id);
+    const { error } = await supabaseAuth.from('customers').update(cleanData).eq('id', id);
 
     if (error) {
       setMsg({ text: 'Error updating: ' + error.message, type: 'error' });
     } else {
-      setMsg({ text: 'Patient updated successfully!', type: 'success' });
+      setMsg({ text: 'Customer updated successfully!', type: 'success' });
       setTimeout(() => setMsg({ text: '', type: '' }), 3000);
     }
     setSaving(false);
   };
 
   if (loading) return <div className={styles.container}><LoadingIcon /></div>;
-  if (!patient) return <div className={styles.container}>Patient not found.</div>;
+  if (!customer) return <div className={styles.container}>Customer not found.</div>;
 
   return (
     <div className={styles.container}>
-      <Link href="/patients" className={styles.backBtn}>
-        <span className="material-symbols-outlined">arrow_back</span> Back to Patients
+      <Link href="/customers" className={styles.backBtn}>
+        <span className="material-symbols-outlined">arrow_back</span> Back to Customers
       </Link>
       
       <div className={styles.header}>
-        <h1 className={styles.title}>Edit Patient: {patient.name}</h1>
+        <h1 className={styles.title}>Edit Customer: {customer.name}</h1>
       </div>
 
       <div className={styles.card}>
@@ -128,53 +128,53 @@ export default function PatientDetail() {
           <div className={styles.formSection}>Basic Information</div>
           <div className={styles.formGroup}>
             <label>Full Name *</label>
-            <input type="text" name="name" required value={patient.name || ''} onChange={handleChange} />
+            <input type="text" name="name" required value={customer.name || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Nationality</label>
-            <input type="text" name="nationality" value={patient.nationality || ''} onChange={handleChange} />
+            <input type="text" name="nationality" value={customer.nationality || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Date of Birth</label>
-            <input type="date" name="dob" value={patient.dob || ''} onChange={handleChange} />
+            <input type="date" name="dob" value={customer.dob || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Contact Number</label>
-            <input type="text" name="contact_number" value={patient.contact_number || ''} onChange={handleChange} />
+            <input type="text" name="contact_number" value={customer.contact_number || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Email Address</label>
-            <input type="email" name="email" value={patient.email || ''} onChange={handleChange} />
+            <input type="email" name="email" value={customer.email || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Physical Address</label>
-            <textarea name="address" rows={2} value={patient.address || ''} onChange={handleChange}></textarea>
+            <textarea name="address" rows={2} value={customer.address || ''} onChange={handleChange}></textarea>
           </div>
 
           <div className={styles.formSection}>Passport & Visa Details</div>
           <div className={styles.formGroup}>
             <label>Passport Number</label>
-            <input type="text" name="passport_no" value={patient.passport_no || ''} onChange={handleChange} />
+            <input type="text" name="passport_no" value={customer.passport_no || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Passport Expiry</label>
-            <input type="date" name="passport_expiry" value={patient.passport_expiry || ''} onChange={handleChange} />
+            <input type="date" name="passport_expiry" value={customer.passport_expiry || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Visa Number</label>
-            <input type="text" name="visa_no" value={patient.visa_no || ''} onChange={handleChange} />
+            <input type="text" name="visa_no" value={customer.visa_no || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Visa Type</label>
-            <input type="text" name="visa_type" value={patient.visa_type || ''} onChange={handleChange} />
+            <input type="text" name="visa_type" value={customer.visa_type || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Visa Country</label>
-            <input type="text" name="visa_country" value={patient.visa_country || ''} onChange={handleChange} />
+            <input type="text" name="visa_country" value={customer.visa_country || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Visa Expiry</label>
-            <input type="date" name="visa_expiry" value={patient.visa_expiry || ''} onChange={handleChange} />
+            <input type="date" name="visa_expiry" value={customer.visa_expiry || ''} onChange={handleChange} />
           </div>
 
           
@@ -228,19 +228,19 @@ export default function PatientDetail() {
           <div className={styles.formSection}>Medical & Emergency</div>
           <div className={styles.formGroup}>
             <label>Emergency Contact Name</label>
-            <input type="text" name="emergency_contact_name" value={patient.emergency_contact_name || ''} onChange={handleChange} />
+            <input type="text" name="emergency_contact_name" value={customer.emergency_contact_name || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Emergency Contact Phone</label>
-            <input type="text" name="emergency_contact_phone" value={patient.emergency_contact_phone || ''} onChange={handleChange} />
+            <input type="text" name="emergency_contact_phone" value={customer.emergency_contact_phone || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Current Hospital</label>
-            <input type="text" name="current_hospital" value={patient.current_hospital || ''} onChange={handleChange} />
+            <input type="text" name="current_hospital" value={customer.current_hospital || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
             <label>Medical Condition</label>
-            <textarea name="medical_condition" rows={2} value={patient.medical_condition || ''} onChange={handleChange}></textarea>
+            <textarea name="medical_condition" rows={2} value={customer.medical_condition || ''} onChange={handleChange}></textarea>
           </div>
 
           <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
