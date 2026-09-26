@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
@@ -53,11 +53,12 @@ export default function DocumentationPage() {
         .btn-action:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .btn-primary { background: #0f172a; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
         .btn-primary:hover { background: #1e293b; }
-      `}
-        @media (max-width: 600px) {
-          .page-header { flex-direction: column; align-items: flex-start !important; gap: 15px; }
+        @media (max-width: 768px) {
+          .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+          .table-container { border-radius: 8px; }
+          .data-table th, .data-table td { padding: 12px; font-size: 0.8rem; }
         }
-      </style>
+      `}</style>
       
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#64748b', textDecoration: 'none', fontWeight: 500, marginBottom: '20px', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#0f172a'} onMouseOut={(e) => e.currentTarget.style.color = '#64748b'}>
