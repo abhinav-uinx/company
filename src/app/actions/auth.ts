@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 import { cookies, headers } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
@@ -58,7 +58,15 @@ export async function logout() {
       // ignore token parse errors on logout
     }
   }
+  // Delete the cookie and also force-expire it so the browser removes it immediately
   cookies().delete('session');
+  cookies().set('session', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    expires: new Date(0), // epoch — instantly expired
+    path: '/',
+  });
 }
 
 export async function terminateSession(sessionId: string) {

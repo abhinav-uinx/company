@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
+import { getSession, logout } from '@/app/actions/auth';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -13,29 +13,27 @@ export default function Dashboard() {
   const [medifCount, setMedifCount] = useState(0);
   
   useEffect(() => {
-    const loggedInUser = Cookies.get('loggedInUser');
-    const role = Cookies.get('userRole');
-    setUserRole(role || '');
-
-    const fetchUser = async () => {
+    const init = async () => {
+      const session = await getSession();
+      if (!session) { router.replace('/login'); return; }
+      const role = session.role as string;
+      const loggedInUser = session.username as string;
+      setUserRole(role);
       const table = role === 'admin' ? 'admins' : 'employees';
       const idField = role === 'admin' ? 'username' : 'iqama_number';
       const { data } = await supabaseAuth.from(table).select('*').eq(idField, loggedInUser).single();
-      if (data) {
-        setUserName(data.name || data.username || loggedInUser);
-      }
-    };
-    fetchUser();
+      if (data) setUserName(data.name || data.username || loggedInUser);
 
     supabaseAuth.from('medif_records').select('*', { count: 'exact', head: true }).then(({ count }) => {
-      setMedifCount(count || 0);
-    });
+        setMedifCount(count || 0);
+      });
+    };
+    init();
   }, [router]);
 
 
-  const handleLogout = () => {
-    Cookies.remove('loggedInUser');
-    Cookies.remove('userRole');
+  const handleLogout = async () => {
+    await logout();
     router.replace('/login');
   };
 
