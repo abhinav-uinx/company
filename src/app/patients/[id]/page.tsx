@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../customers.module.css';
+import styles from '../patients.module.css';
 import LoadingIcon from '@/components/LoadingIcon';
 
 export default function CustomerDetail() {
