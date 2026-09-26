@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../customers.module.css';
+import styles from '../patients.module.css';
 
 export default function AddCustomer() {
   const router = useRouter();
@@ -151,3 +151,4 @@ export default function AddCustomer() {
     </div>
   );
 }
+
