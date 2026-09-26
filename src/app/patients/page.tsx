@@ -97,7 +97,7 @@ export default function CustomersList() {
       </div>
 
       <div className={styles.card}>
-        <table className={styles.table}>
+        <div className={styles.tableWrapper}><table className={styles.table}>
           <thead>
             <tr>
               <th>Customer Name</th>
@@ -144,7 +144,7 @@ export default function CustomersList() {
               </tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -315,3 +315,4 @@ export default function CustomersList() {
     </>
   );
 }
+

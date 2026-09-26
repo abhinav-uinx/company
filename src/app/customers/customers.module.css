@@ -190,3 +190,9 @@
     padding: 20px 15px;
   }
 }
+
+.tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}

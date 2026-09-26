@@ -48,7 +48,7 @@ export default function InvoicesList() {
         </div>
 
         <div className={styles.card}>
-          <table className={styles.table}>
+          <div className={styles.tableWrapper}><table className={styles.table}>
             <thead>
               <tr>
                 <th>Invoice ID</th>
@@ -102,7 +102,7 @@ export default function InvoicesList() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
@@ -158,3 +158,4 @@ export default function InvoicesList() {
     </>
   );
 }
+

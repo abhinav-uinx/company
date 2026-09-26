@@ -61,7 +61,7 @@ export default function EscortsList() {
         </div>
 
         <div className={styles.card}>
-          <table className={styles.table}>
+          <div className={styles.tableWrapper}><table className={styles.table}>
             <thead>
               <tr>
                 <th>Customer</th>
@@ -115,7 +115,7 @@ export default function EscortsList() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
