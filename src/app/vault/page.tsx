@@ -187,7 +187,7 @@ export default function Vault() {
       <main className="vault-container">
         <div className="vault-header">
           <div>
-            <Link href="/dashboard" className="back-btn"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard</Link>
+            <Link href="/user/dashboard" className="back-btn"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard</Link>
             <h1 style={{ marginTop: '15px' }}>Document Vault</h1>
             <p style={{ color: '#64748b', marginTop: '5px' }}>All generated MEDIFs and employee documents are stored here.</p>
           </div>

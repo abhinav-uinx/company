@@ -17,7 +17,7 @@ export default function InvoiceDetail() {
   useEffect(() => {
     async function loadInvoice() {
       const [invRes, payRes] = await Promise.all([
-        supabaseAuth.from('invoices').select('*, customers(name, address), escort_missions(from_country, to_country)').eq('id', id).single(),
+        supabaseAuth.from('invoices').select('*, customers!customer_id(name, address, passport_no), escort_missions(from_country, to_country)').eq('id', id).single(),
         supabaseAuth.from('payment_history').select('*').eq('invoice_id', id).order('payment_date', { ascending: false })
       ]);
       if (invRes.data) setInvoice(invRes.data);
@@ -50,10 +50,13 @@ export default function InvoiceDetail() {
       <div className={styles.card} style={{ padding: '40px' }} id="printable-invoice">
         {/* Simple Printable Invoice Template */}
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #e2e8f0', paddingBottom: '20px', marginBottom: '30px' }}>
-          <div>
-            <h2 style={{ margin: 0, color: '#0f172a' }}>YOUR COMPANY NAME</h2>
-            <p style={{ margin: '5px 0', color: '#64748b' }}>123 Corporate Ave, Business City</p>
-            <p style={{ margin: 0, color: '#64748b' }}>support@company.com</p>
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <img src="/Assets/Company logo/main_logo.png" alt="Logo" style={{ width: '80px', height: 'auto', objectFit: 'contain' }} />
+            <div>
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.5rem' }}>Medescort International</h2>
+              <p style={{ margin: '5px 0', color: '#64748b' }}>123 Corporate Ave, Business City</p>
+              <p style={{ margin: 0, color: '#64748b' }}>support@company.com</p>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <h2 style={{ margin: 0, color: '#2563eb' }}>INVOICE</h2>
@@ -67,6 +70,12 @@ export default function InvoiceDetail() {
             <h4 style={{ color: '#0f172a', marginBottom: '10px' }}>Bill To:</h4>
             <p style={{ margin: '0 0 5px', fontWeight: 600 }}>{invoice.customers?.name}</p>
             <p style={{ margin: 0, color: '#64748b', whiteSpace: 'pre-line' }}>{invoice.customers?.address || 'No Address Provided'}</p>
+            {invoice.customers?.passport_no && (
+              <p style={{ margin: '5px 0 0 0', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>book</span>
+                Passport: {invoice.customers.passport_no}
+              </p>
+            )}
           </div>
           {invoice.escort_missions && (
             <div style={{ textAlign: 'right' }}>

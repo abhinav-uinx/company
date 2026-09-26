@@ -43,22 +43,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isPublicRoute || pathname === '/') {
-        router.replace('/dashboard');
+      if (isPublicRoute || pathname === '/' || pathname === '/dashboard') {
+        router.replace(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
       } else {
         let allowed = true;
         if (role !== 'admin') {
+          // Block regular users from admin sections entirely
+          if (pathname.startsWith('/admin')) allowed = false;
+          
           const perms = data?.permissions || [];
-          if (pathname.startsWith('/directory')) allowed = false;
-          else if (pathname.startsWith('/customers') && !perms.includes('customers')) allowed = false;
+          if (pathname.startsWith('/customers') && !perms.includes('customers')) allowed = false;
           else if (pathname.startsWith('/escorts') && !perms.includes('escorts')) allowed = false;
           else if (pathname.startsWith('/documentation') && !perms.includes('documentation')) allowed = false;
           else if (pathname.startsWith('/invoices') && !perms.includes('invoices')) allowed = false;
-          else if (pathname.startsWith('/reports') && !perms.includes('reports')) allowed = false;
+        } else {
+          // Block admins from user sections if they shouldn't be there (optional, but good for separation)
+          // For now, let admins access /user stuff if they type it, but the dashboard links to /admin/*
         }
 
         if (!allowed) {
-          router.replace('/dashboard');
+          router.replace(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
         } else {
           setIsChecking(false);
         }

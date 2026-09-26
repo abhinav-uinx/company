@@ -14,7 +14,6 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<any[]>([]);
-  const [docServices, setDocServices] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [uploads, setUploads] = useState<any[]>([]);
@@ -25,8 +24,6 @@ export default function CustomerDetail() {
       if (!id) return;
       const { data } = await supabaseAuth.from('customers').select('*').eq('id', id).single();
       const sRes = await supabaseAuth.from('services').select('*');
-      const dRes = await supabaseAuth.from('doc_service_types').select('*');
-      if (dRes.data) setDocServices(dRes.data);
       
       if (sRes.data) setServices(sRes.data);
       setCustomer(data);
@@ -172,19 +169,6 @@ export default function CustomerDetail() {
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-            {isGeneral && (
-              <div className={styles.formGroup}>
-                <label>Documentation Services (Hold Ctrl/Cmd for multiple)</label>
-                <select multiple name="service_type" value={customer.service_type || []} onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                  setCustomer({...customer, service_type: selected});
-                }} style={{ height: '80px' }}>
-                  {docServices.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
 
           <div className={styles.formSection}>Passport & Visa Details</div>

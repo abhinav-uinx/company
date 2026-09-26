@@ -71,7 +71,8 @@ export default function AddEscortMission() {
     } else {
       setMsg({ text: 'Mission assigned successfully!', type: 'success' });
       setTimeout(() => {
-        router.push('/escorts');
+        router.refresh();
+          router.push('/escorts');
       }, 1500);
     }
     setLoading(false);

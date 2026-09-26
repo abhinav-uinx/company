@@ -22,19 +22,18 @@ export default function DocumentationPage() {
 
   async function fetchData() {
     setLoading(true);
-    const { data: genService } = await supabaseAuth.from('services').select('id').eq('name', 'General Service').single();
-    
-    if (genService) {
-      const [cRes, dRes] = await Promise.all([
-        supabaseAuth.from('customers').select('*').eq('service', genService.id).order('created_at', { ascending: false }),
-        supabaseAuth.from('doc_service_types').select('*')
-      ]);
-      
-      if (dRes.data) setDocTypes(dRes.data);
-      if (cRes.data) {
-        setCustomers(cRes.data);
-      }
-    }
+
+    const [recRes, dRes] = await Promise.all([
+      // Join general_service_records with customer info
+      supabaseAuth
+        .from('general_service_records')
+        .select('*, customers(id, name, contact_number, nationality)')
+        .order('created_at', { ascending: false }),
+      supabaseAuth.from('doc_service_types').select('*')
+    ]);
+
+    if (dRes.data) setDocTypes(dRes.data);
+    if (recRes.data) setCustomers(recRes.data);
     setLoading(false);
   }
 
@@ -61,7 +60,7 @@ export default function DocumentationPage() {
       `}</style>
       
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
-        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#64748b', textDecoration: 'none', fontWeight: 500, marginBottom: '20px', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#0f172a'} onMouseOut={(e) => e.currentTarget.style.color = '#64748b'}>
+        <Link href="/user/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#64748b', textDecoration: 'none', fontWeight: 500, marginBottom: '20px', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#0f172a'} onMouseOut={(e) => e.currentTarget.style.color = '#64748b'}>
           <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>arrow_back</span>
           Back to Dashboard
         </Link>
@@ -95,39 +94,53 @@ export default function DocumentationPage() {
                   </td>
                 </tr>
               ) : customers.length > 0 ? (
-                customers.map(c => (
-                  <tr key={c.id}>
-                    <td style={{ fontWeight: 500 }}>{c.name}</td>
-                    <td>{c.nationality || '-'}</td>
-                    <td>{c.contact_number || '-'}</td>
+                customers.map((rec: any) => (
+                  <tr key={rec.id}>
+                    <td style={{ fontWeight: 500 }}>{rec.customers?.name || '-'}</td>
+                    <td>{rec.customers?.nationality || '-'}</td>
+                    <td>{rec.customers?.contact_number || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {c.service_type && c.service_type.length > 0 ? c.service_type.map((id: string) => {
-                          const name = docTypes.find(d => d.id === id)?.name;
-                          return name ? (
+                        {rec.service_ids && rec.service_ids.length > 0 ? rec.service_ids.map((id: string) => {
+                          const svc = docTypes.find((d: any) => d.id === id);
+                          return svc ? (
                             <span key={id} style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 500 }}>
-                              {name}
+                              {svc.name}
                             </span>
                           ) : null;
                         }) : <span style={{ color: '#94a3b8' }}>None</span>}
                       </div>
                     </td>
                     <td>
-                      <button onClick={() => setViewCustomer(c)} className="btn-action">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-                        View
-                      </button>
+                      <span style={{
+                        padding: '4px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600,
+                        background: rec.status === 'Completed' ? '#dcfce7' : rec.status === 'In Progress' ? '#fef9c3' : rec.status === 'Cancelled' ? '#fee2e2' : '#f1f5f9',
+                        color: rec.status === 'Completed' ? '#166534' : rec.status === 'In Progress' ? '#854d0e' : rec.status === 'Cancelled' ? '#991b1b' : '#475569'
+                      }}>{rec.status || 'Pending'}</span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={() => setViewCustomer(rec)} className="btn-action">
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
+                          View
+                        </button>
+                        <Link href={`/documentation/${rec.id}`} style={{ color: '#2563eb', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+                          Edit
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                    No General Service customers found.
+                    No documentation requests yet.
                   </td>
                 </tr>
               )}
             </tbody>
+
           </table>
         </div>
       </div>
@@ -143,7 +156,7 @@ export default function DocumentationPage() {
                 </div>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>General Service Details</h2>
-                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>Customer: <span style={{ fontWeight: 600, color: '#0369a1' }}>{viewCustomer.name}</span></p>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>Customer: <span style={{ fontWeight: 600, color: '#0369a1' }}>{viewCustomer.customers?.name}</span></p>
                 </div>
               </div>
               <button onClick={() => setViewCustomer(null)} style={{ background: '#f1f5f9', border: 'none', width: '36px', height: '36px', borderRadius: '50%', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>&times;</button>
@@ -155,16 +168,16 @@ export default function DocumentationPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Nationality</div>
-                    <div style={{ fontWeight: 500, color: '#0f172a' }}>{viewCustomer.nationality || '-'}</div>
+                    <div style={{ fontWeight: 500, color: '#0f172a' }}>{viewCustomer.customers?.nationality || '-'}</div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Contact Number</div>
-                    <div style={{ fontWeight: 500, color: '#0f172a' }}>{viewCustomer.contact_number || '-'}</div>
+                    <div style={{ fontWeight: 500, color: '#0f172a' }}>{viewCustomer.customers?.contact_number || '-'}</div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #f1f5f9', gridColumn: '1 / -1' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Requested Documents</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                      {viewCustomer.service_type && viewCustomer.service_type.length > 0 ? viewCustomer.service_type.map((id: string) => {
+                      {viewCustomer.service_ids && viewCustomer.service_ids.length > 0 ? viewCustomer.service_ids.map((id: string) => {
                           const name = docTypes.find(d => d.id === id)?.name;
                           return name ? (
                             <span key={id} style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 12px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 500, border: '1px solid #bae6fd' }}>

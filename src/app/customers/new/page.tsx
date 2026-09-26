@@ -11,7 +11,6 @@ export default function AddCustomer() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [services, setServices] = useState<any[]>([]);
-  const [docServices, setDocServices] = useState<any[]>([]);
   useEffect(() => {
     async function fetchServices() {
       const { data } = await supabaseAuth.from('services').select('*');
@@ -22,7 +21,6 @@ export default function AddCustomer() {
   
   const [formData, setFormData] = useState({
     service: '',
-    service_type: [] as string[],
     iqama_number: '',
     name: '',
     nationality: '',
@@ -124,19 +122,6 @@ export default function AddCustomer() {
               {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-            {isGeneral && (
-              <div className={styles.formGroup}>
-                <label>Documentation Services (Hold Ctrl/Cmd for multiple)</label>
-                <select multiple name="service_type" value={formData.service_type || []} onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                  setFormData({...formData, service_type: selected});
-                }} style={{ height: '80px' }}>
-                  {docServices.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
 
           <div className={styles.formSection}>Passport & Visa Details</div>

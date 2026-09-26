@@ -22,7 +22,9 @@ function LoginContent() {
     setError('');
     try {
       const res = await login(username, password);
+      let targetUrl = "";
       if (res.success) {
+        targetUrl = res.role === "admin" ? "/admin/dashboard" : "/user/dashboard";
         // 1. Start animation — slide right panel out, expand left
         setPhase('authenticating');
 
@@ -30,7 +32,7 @@ function LoginContent() {
         setTimeout(() => {
           setPhase('done');
           setTimeout(() => {
-            router.replace('/dashboard');
+            router.replace(targetUrl);
           }, 1400); // fade duration
         }, 2400);
       } else {

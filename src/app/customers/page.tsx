@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from './customers.module.css';
+import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
 
 export default function CustomersList() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<any[]>([]);
-  const [docServices, setDocServices] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   
   const [viewCustomer, setViewCustomer] = useState<any>(null);
@@ -22,17 +22,12 @@ export default function CustomersList() {
 
   async function fetchCustomers() {
     setLoading(true);
-    const [cRes, sRes, dRes] = await Promise.all([
+    const [cRes, sRes] = await Promise.all([
       supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
-      supabaseAuth.from('services').select('*'),
-      supabaseAuth.from('doc_service_types').select('*')
+      supabaseAuth.from('services').select('*')
     ]);
     if (sRes.data) setServices(sRes.data);
-    if (dRes.data) setDocServices(dRes.data);
-    const data = cRes.data;
-    const error = cRes.error;
-    
-    if (data) setCustomers(data);
+    if (cRes.data) setCustomers(cRes.data);
     setLoading(false);
   }
 
@@ -82,7 +77,7 @@ export default function CustomersList() {
   return (
     <>
     <div className={styles.container}>
-      <Link href="/dashboard" className={styles.backBtn}>
+      <Link href="/user/dashboard" className={styles.backBtn}>
         <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
       </Link>
       
@@ -117,16 +112,12 @@ export default function CustomersList() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={6} style={{ padding: '40px', position: 'relative', height: '200px' }}>
-                  <LoadingIcon />
-                </td>
-              </tr>
+              <TableSkeleton cols={6} />
             ) : filteredCustomers.length > 0 ? (
               filteredCustomers.map(customer => (
                 <tr key={customer.id}>
                   <td style={{ fontWeight: 500 }}>{customer.name}</td>
-                  <td>{customer.service_ids && customer.service_ids.length > 0 ? customer.service_ids.map((id: string) => services.find(s => s.id === id)?.name).filter(Boolean).join(', ') : (customer.services?.name || 'Unassigned')}</td>
+                  <td>{services.find(s => s.id === customer.service)?.name || 'Unassigned'}</td>
                   
                   <td>{customer.nationality || 'N/A'}</td>
                   <td>{customer.passport_no || 'N/A'}</td>

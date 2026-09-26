@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from './escorts.module.css';
+import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
 
 export default function EscortsList() {
   const [missions, setMissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [viewMission, setViewMission] = useState<any>(null);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function EscortsList() {
     setLoading(true);
     const { data, error } = await supabaseAuth
       .from('escort_missions')
-      .select('*, customers(name)')
+      .select('*, customers!customer_id(name)')
       .order('created_at', { ascending: false });
     
     if (data) {
@@ -30,6 +32,7 @@ export default function EscortsList() {
       setMissions(mapped);
     } else {
       console.error(error);
+      if (error) setErrorMsg(error.message);
     }
     setLoading(false);
   }
@@ -49,12 +52,13 @@ export default function EscortsList() {
   return (
     <>
       <div className={styles.container}>
-        <Link href="/dashboard" className={styles.backBtn}>
+        <Link href="/user/dashboard" className={styles.backBtn}>
           <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
         </Link>
         
         <div className={styles.header}>
           <h1 className={styles.title}>Escort Missions</h1>
+          {errorMsg && <div style={{color: 'red'}}>{errorMsg}</div>}
           <Link href="/escorts/new" className={styles.addBtn}>
             <span className="material-symbols-outlined">flight_takeoff</span> Assign New Mission
           </Link>
@@ -74,11 +78,7 @@ export default function EscortsList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '40px', position: 'relative', height: '200px' }}>
-                    <LoadingIcon />
-                  </td>
-                </tr>
+                <TableSkeleton cols={6} />
               ) : missions.length > 0 ? (
                 missions.map(mission => (
                   <tr key={mission.id}>

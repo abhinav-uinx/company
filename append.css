@@ -1,0 +1,39 @@
+
+/* ============================================================
+   CLICK EFFECTS & TRANSITIONS
+   ============================================================ */
+button, .btn, .btn-submit, .tab-btn, a {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active, .btn:active, .btn-submit:active, .tab-btn:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================
+   SKELETON LOADER
+   ============================================================ */
+.skeleton-row {
+  border-bottom: 1px solid var(--line);
+}
+.skeleton-cell {
+  height: 20px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}

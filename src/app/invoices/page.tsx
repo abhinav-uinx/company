@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from './invoices.module.css';
+import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
 
 export default function InvoicesList() {
@@ -20,7 +21,7 @@ export default function InvoicesList() {
     setLoading(true);
     const { data, error } = await supabaseAuth
       .from('invoices')
-      .select('*, customers(name)')
+      .select('*, customers!customer_id(name)')
       .order('created_at', { ascending: false });
     
     if (data) setInvoices(data);
@@ -36,7 +37,7 @@ export default function InvoicesList() {
   return (
     <>
       <div className={styles.container}>
-        <Link href="/dashboard" className={styles.backBtn}>
+        <Link href="/user/dashboard" className={styles.backBtn}>
           <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
         </Link>
         
@@ -62,11 +63,7 @@ export default function InvoicesList() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '40px', position: 'relative', height: '200px' }}>
-                    <LoadingIcon />
-                  </td>
-                </tr>
+                <TableSkeleton cols={7} />
               ) : invoices.length > 0 ? (
                 invoices.map(inv => (
                   <tr key={inv.id}>
