@@ -55,11 +55,20 @@ export default function AddCustomer() {
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
 
-    const { error } = await supabaseAuth.from('customers').insert([cleanData]);
+    const { data: newCustomer, error } = await supabaseAuth.from('customers').insert([cleanData]).select().single();
 
     if (error) {
       setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
     } else {
+      // Automatically create the folder structure in the storage buckets
+      const serviceObj = services.find(s => s.id === formData.service);
+      if (serviceObj && newCustomer) {
+        const bucket = serviceObj.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+        const emptyBlob = new Blob([' '], { type: 'text/plain' });
+        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/passport/.keep`, emptyBlob);
+        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/ticket/.keep`, emptyBlob);
+      }
+
       setMsg({ text: 'Customer added successfully! Redirecting...', type: 'success' });
       setTimeout(() => {
         router.push('/customers');
