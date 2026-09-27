@@ -56,17 +56,17 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
   };
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    const text = await req.text();
-    if (text) fetchOptions.body = text;
+    const buffer = await req.arrayBuffer();\n    if (buffer.byteLength > 0) fetchOptions.body = buffer;
   }
 
   // 4. Proxy the request
   try {
     const response = await fetch(targetUrl, fetchOptions);
-    const data = await response.text();
+    const data = await response.arrayBuffer();
 
     const responseHeaders = new Headers(response.headers);
     responseHeaders.delete('content-encoding'); // Let Next.js handle encoding
+    responseHeaders.delete('content-length'); // Let Next.js calculate the correct length
 
     return new NextResponse(response.status === 204 ? null : data, {
       status: response.status,
