@@ -101,17 +101,12 @@ export default function CustomersList() {
     const serviceObj = services.find(s => s.id === customer.service);
     const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
     
-    if (bucket) {
-      const { data: files } = await supabaseAuth.storage.from(bucket).list(customer.id + '/passport');
-      if (files) {
-        const realFiles = files.filter((f: any) => f.name !== '.keep' && !f.name.startsWith('.empty'));
-        const uploadsData = await Promise.all(realFiles.map(async (f: any) => {
-          const path = customer.id + '/passport/' + f.name;
-          const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(path, 3600);
-          return { name: f.name, type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path };
-        }));
-        setViewPassports(uploadsData);
-      }
+    if (bucket && customer.passport && Array.isArray(customer.passport)) {
+      const uploadsData = await Promise.all(customer.passport.map(async (file: any) => {
+        const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(file.path, 3600);
+        return { name: file.name, type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path: file.path };
+      }));
+      setViewPassports(uploadsData);
     }
     setLoadingPassports(false);
   };

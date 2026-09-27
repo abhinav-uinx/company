@@ -109,6 +109,7 @@ export default function CustomerDetail() {
     
     const cleanData = { ...customer };
       delete (cleanData as any).passport_photo_url;
+    cleanData.passport = uploads.map(u => ({ name: u.name, path: u.path }));
     if (!cleanData.dob) delete (cleanData as any).dob;
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
