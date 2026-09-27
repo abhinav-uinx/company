@@ -68,7 +68,7 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     const responseHeaders = new Headers(response.headers);
     responseHeaders.delete('content-encoding'); // Let Next.js handle encoding
 
-    return new NextResponse(data, {
+    return new NextResponse(response.status === 204 ? null : data, {
       status: response.status,
       headers: {
         ...Object.fromEntries(responseHeaders.entries()),
