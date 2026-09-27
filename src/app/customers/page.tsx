@@ -13,6 +13,10 @@ export default function CustomersList() {
   const [services, setServices] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  
   const [viewCustomer, setViewCustomer] = useState<any>(null);
   const [fullscreenFile, setFullscreenFile] = useState<any>(null);
 
@@ -36,6 +40,27 @@ export default function CustomersList() {
     (p.passport_no && p.passport_no.toLowerCase().includes(search.toLowerCase())) ||
     (p.nationality && p.nationality.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} customer(s)? This action cannot be undone.`)) return;
+    
+    setDeleting(true);
+    const { error } = await supabaseAuth.from('customers').delete().in('id', selectedIds);
+    setDeleting(false);
+    
+    if (!error) {
+      setDeleteMode(false);
+      setSelectedIds([]);
+      fetchCustomers();
+    } else {
+      alert('Error deleting customers: ' + error.message);
+    }
+  };
 
   const handleShare = async (file: any) => {
     try {
@@ -65,13 +90,34 @@ export default function CustomersList() {
   };
 
   // Helper to safely parse passport photos from stringified JSON
-  const getPassports = (customer: any) => {
-    if (!customer || !customer.passport_photo_url) return [];
-    try {
-      return JSON.parse(customer.passport_photo_url);
-    } catch (e) {
-      return [];
+  const [viewPassports, setViewPassports] = useState<any[]>([]);
+  const [loadingPassports, setLoadingPassports] = useState(false);
+
+  const handleViewCustomer = async (customer: any) => {
+    setViewCustomer(customer);
+    setLoadingPassports(true);
+    setViewPassports([]);
+    
+    const serviceObj = services.find(s => s.id === customer.service);
+    const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+    
+    if (bucket) {
+      const { data: files } = await supabaseAuth.storage.from(bucket).list(customer.id + '/passport');
+      if (files) {
+        const realFiles = files.filter((f: any) => f.name !== '.keep' && !f.name.startsWith('.empty'));
+        const uploadsData = await Promise.all(realFiles.map(async (f: any) => {
+          const path = customer.id + '/passport/' + f.name;
+          const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(path, 3600);
+          return { name: f.name, type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path };
+        }));
+        setViewPassports(uploadsData);
+      }
     }
+    setLoadingPassports(false);
+  };
+
+  const getPassports = (customer: any) => {
+    return viewPassports;
   };
 
   return (
@@ -83,9 +129,28 @@ export default function CustomersList() {
       
       <div className={styles.header}>
         <h1 className={styles.title}>Customer Management</h1>
-        <Link href="/customers/new" className={styles.addBtn}>
-          <span className="material-symbols-outlined">person_add</span> Add New Customer
-        </Link>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          {deleteMode && selectedIds.length > 0 && (
+            <button 
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+              style={{ background: '#ef4444', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span className="material-symbols-outlined">delete_forever</span> 
+              {deleting ? 'Deleting...' : `Delete Selected (${selectedIds.length})`}
+            </button>
+          )}
+          <button 
+            onClick={() => { setDeleteMode(!deleteMode); setSelectedIds([]); }} 
+            style={{ background: deleteMode ? '#f1f5f9' : '#fee2e2', color: deleteMode ? '#475569' : '#ef4444', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+          >
+            <span className="material-symbols-outlined">{deleteMode ? 'close' : 'delete'}</span> 
+            {deleteMode ? 'Cancel' : 'Delete'}
+          </button>
+          <Link href="/customers/new" className={styles.addBtn}>
+            <span className="material-symbols-outlined">person_add</span> Add New Customer
+          </Link>
+        </div>
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -102,6 +167,7 @@ export default function CustomersList() {
         <div className={styles.tableWrapper}><table className={styles.table}>
           <thead>
             <tr>
+              {deleteMode && <th style={{ width: '40px', textAlign: 'center' }}></th>}
               <th>Customer Name</th>
               <th>Service</th>
               <th>Nationality</th>
@@ -112,10 +178,20 @@ export default function CustomersList() {
           </thead>
           <tbody>
             {loading ? (
-              <TableSkeleton cols={6} />
+              <TableSkeleton cols={deleteMode ? 7 : 6} />
             ) : filteredCustomers.length > 0 ? (
               filteredCustomers.map(customer => (
-                <tr key={customer.id}>
+                <tr key={customer.id} style={{ background: selectedIds.includes(customer.id) ? '#fef2f2' : 'transparent', transition: 'background 0.2s' }}>
+                  {deleteMode && (
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(customer.id)} 
+                        onChange={() => toggleSelect(customer.id)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#ef4444' }}
+                      />
+                    </td>
+                  )}
                   <td style={{ fontWeight: 500 }}>{customer.name}</td>
                   <td>{services.find(s => s.id === customer.service)?.name || 'Unassigned'}</td>
                   
@@ -125,7 +201,7 @@ export default function CustomersList() {
                   <td>
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button 
-                        onClick={() => setViewCustomer(customer)}
+                        onClick={() => handleViewCustomer(customer)}
                         style={{ background: '#f1f5f9', color: '#334155', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 500 }}
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span> View
@@ -239,7 +315,9 @@ export default function CustomersList() {
               Passport Documents
             </div>
             
-            {getPassports(viewCustomer).length > 0 ? (
+            {loadingPassports ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>Loading passports...</div>
+            ) : viewPassports.length > 0 ? (
               <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                 {getPassports(viewCustomer).map((file: any, i: number) => (
                   <div 

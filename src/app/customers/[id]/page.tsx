@@ -97,7 +97,8 @@ export default function CustomerDetail() {
     setSaving(true);
     setMsg({ text: '', type: '' });
     
-    const cleanData = { ...customer, passport_photo_url: JSON.stringify(uploads) };
+    const cleanData = { ...customer };
+      delete (cleanData as any).passport_photo_url;
     if (!cleanData.dob) delete (cleanData as any).dob;
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
@@ -202,11 +203,9 @@ export default function CustomerDetail() {
           <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
             <label>Upload Passport Files (Front/Back or Single PDF - Max 2)</label>
             <div style={{ padding: '20px', border: '2px dashed #cbd5e1', borderRadius: '8px', textAlign: 'center', background: '#f8fafc', marginBottom: '15px' }}>
-              <input type="file" multiple accept="image/*,application/pdf" onChange={handleFileUpload} disabled={uploads.length >= 2} style={{ display: 'none' }} id="passport-upload" />
+              <input type="file" multiple accept="image/*,application/pdf" onChange={handleFileUpload} disabled={uploads.length >= 2 || uploading} style={{ display: 'none' }} id="passport-upload" />
               <label htmlFor="passport-upload" style={{ display: 'inline-block', padding: '10px 20px', background: uploads.length >= 2 ? '#cbd5e1' : '#0f172a', color: 'white', borderRadius: '6px', cursor: uploads.length >= 2 ? 'not-allowed' : 'pointer' }}>
-                <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>upload_file</span>
-                Select Files
-              </label>
+                <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>upload_file</span>{uploading ? "Uploading..." : "Select Files"}</label>
               <p style={{ margin: '10px 0 0', fontSize: '13px', color: '#64748b' }}>{uploads.length}/2 Files Uploaded</p>
             </div>
 
