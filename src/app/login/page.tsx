@@ -80,7 +80,18 @@ function LoginContent() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes spinLand {
+        
+          .login-container { display: flex; flex-direction: row; height: 100vh; width: 100vw; position: fixed; inset: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+          .left-panel { flex: 1; transition: flex 0.8s cubic-bezier(0.4, 0, 0.2, 1); padding: 48px; }
+          .right-panel { background: #f8fafc; display: flex; flex-direction: column; alignItems: center; justify-content: center; overflow: hidden; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), padding 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+          
+          @media (max-width: 800px) {
+            .login-container { flex-direction: column; position: static; min-height: 100vh; overflow-y: auto; height: auto; }
+            .left-panel { flex: 0 0 auto !important; padding: 40px 20px !important; min-height: 250px; }
+            .right-panel { width: 100% !important; padding: 40px 20px !important; min-height: calc(100vh - 250px); }
+          }
+
+          @keyframes spinLand {
           0%   { transform: rotate(0deg) scale(0.7); opacity: 0; }
           40%  { transform: rotate(340deg) scale(1.08); opacity: 1; }
           60%  { transform: rotate(355deg) scale(0.97); }
@@ -137,28 +148,10 @@ function LoginContent() {
         }} />
       )}
 
-      <div style={{
-        position: 'fixed', inset: 0,
-        display: 'flex', flexDirection: 'row',
-        fontFamily: "'Inter', sans-serif",
-        overflow: 'hidden',
-      }}>
+      <div className="login-container">
 
         {/* â”€â”€ Left brand panel â”€â”€ */}
-        <div style={{
-          flex: isAuth ? '1 0 100%' : '1',
-          background: 'linear-gradient(160deg, #0a1f4e 0%, #0d2b6b 45%, #091628 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '24px',
-          padding: '48px',
-          position: 'relative',
-          overflow: 'hidden',
-          transition: 'flex 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-          zIndex: 2,
-        }}>
+        <div className="left-panel" style={{ flex: isAuth ? '1 0 100%' : '1', background: 'linear-gradient(160deg, #0a1f4e 0%, #0d2b6b 45%, #091628 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px', position: 'relative', overflow: 'hidden', zIndex: 2 }}>
           {/* Glow blobs */}
           <div style={{ position:'absolute', width:'500px', height:'500px', borderRadius:'50%', background:'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)', top:'-200px', left:'-150px', pointerEvents:'none' }} />
           <div style={{ position:'absolute', width:'400px', height:'400px', borderRadius:'50%', background:'radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)', bottom:'-100px', right:'-100px', pointerEvents:'none' }} />
@@ -227,21 +220,12 @@ function LoginContent() {
         </div>
 
         {/* â”€â”€ Right form panel â”€â”€ */}
-        <div style={{
-          width: isAuth ? '0' : '420px',
-          flexShrink: 0,
-          background: '#f8fafc',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: isAuth ? '0' : '40px 36px',
-          overflow: 'hidden',
-          transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1), padding 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-          transform: isAuth ? 'translateX(100%)' : 'translateX(0)',
-          // @ts-ignore
-          transitionProperty: 'width, padding, transform',
-        }}>
+        <div className="right-panel" style={{ 
+  width: isAuth ? '0' : '420px',
+  padding: isAuth ? '0' : '40px 36px',
+  transform: isAuth ? 'translateX(100%)' : 'translateX(0)',
+  flexShrink: 0
+}}>
           <div style={{ width: '100%', maxWidth: '340px', whiteSpace: 'nowrap' }}>
 
             <div style={{ marginBottom: '28px' }}>

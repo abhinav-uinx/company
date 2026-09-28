@@ -49,6 +49,7 @@ export default function Dashboard() {
               <Link className="navlink" href="/admin/directory">Directory</Link>
             )}
             {userRole === 'admin' && <Link className="navlink" href="/admin/reports">Reports</Link>}
+            {userRole === 'admin' && <Link className="navlink" href="/admin/sessions">Sessions</Link>}
             <Link className="navlink" href="#">Help</Link>
           </nav>
           <div className="user-info" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -159,8 +160,20 @@ export default function Dashboard() {
             </div>
           )}
 
+        
+          {userRole === 'admin' && (
+            <div className="service-card admin-only" onClick={() => router.push('/admin/sessions')} style={{ cursor: 'pointer' }}>
+              <span className="admin-tag">Admin only</span>
+              <div className="service-icon icon-admin">
+                <span className="material-symbols-outlined" style={{fontSize: '28px'}}>security</span>
+              </div>
+              <h3>Active Sessions</h3>
+              <Link className="service-open group" href="/admin/sessions"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            </div>
+          )}
         </div>
       </section>
+
     
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
@@ -180,7 +193,14 @@ export default function Dashboard() {
             <span>Reports</span>
           </Link>
         )}
-        <Link href="#" className="bottom-nav-item">
+        
+        {userRole === 'admin' && (
+          <Link href="/admin/sessions" className="bottom-nav-item">
+            <span className="material-symbols-outlined">security</span>
+            <span>Sessions</span>
+          </Link>
+        )}
+<Link href="#" className="bottom-nav-item">
           <span className="material-symbols-outlined">help</span>
           <span>Help</span>
         </Link>
@@ -188,6 +208,7 @@ export default function Dashboard() {
     </>
   );
 }
+
 
 
 
