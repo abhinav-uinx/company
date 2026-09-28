@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -27,13 +27,16 @@ export default function CustomerDetail() {
       
       if (sRes.data) setServices(sRes.data);
       setCustomer(data);
-      if (data.passport_photo_url) {
-        try {
-          const parsed = JSON.parse(data.passport_photo_url);
-          if (Array.isArray(parsed)) setUploads(parsed);
-        } catch(e) {
-          console.error('Not JSON', e);
-        }
+      
+      const serviceObj = sRes.data?.find((s: any) => s.id === data.service);
+      const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+      
+      if (bucket && data.passport && Array.isArray(data.passport)) {
+        const uploadsData = await Promise.all(data.passport.map(async (file: any) => {
+          const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(file.path, 3600);
+          return { name: file.name, type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path: file.path };
+        }));
+        setUploads(uploadsData);
       }
       setLoading(false);
     }
@@ -94,7 +97,15 @@ export default function CustomerDetail() {
     }
   };
 
-  const removeUpload = (index: number) => {
+  const removeUpload = async (index: number) => {
+    const file = uploads[index];
+    if (file && file.path) {
+      const serviceObj = services.find((s: any) => s.id === customer.service);
+      const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+      if (bucket) {
+        await supabaseAuth.storage.from(bucket).remove([file.path]);
+      }
+    }
     setUploads(prev => prev.filter((_, i) => i !== index));
   };
   
@@ -119,8 +130,8 @@ export default function CustomerDetail() {
     if (error) {
       setMsg({ text: 'Error updating: ' + error.message, type: 'error' });
     } else {
-      setMsg({ text: 'Customer updated successfully!', type: 'success' });
-      setTimeout(() => setMsg({ text: '', type: '' }), 3000);
+      setMsg({ text: 'Customer updated successfully! Redirecting...', type: 'success' });
+      setTimeout(() => router.push('/customers'), 1500);
     }
     setSaving(false);
   };
@@ -279,9 +290,14 @@ export default function CustomerDetail() {
           )}
           <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
             {msg.text && <div style={{ padding: '10px', background: msg.type === 'error' ? '#fee2e2' : '#dcfce7', color: msg.type === 'error' ? '#991b1b' : '#166534', borderRadius: '8px', marginBottom: '15px' }}>{msg.text}</div>}
-            <button type="submit" className={styles.submitBtn} disabled={saving} style={{ width: '100%' }}>
-              {saving ? 'Updating...' : 'Save Changes'}
-            </button>
+            <div style={{ display: 'flex', gap: '15px' }}>
+                <button type="button" onClick={() => router.push('/customers')} disabled={saving} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '15px' }}>
+                  Cancel
+                </button>
+                <button type="submit" className={styles.submitBtn} disabled={saving} style={{ flex: 1 }}>
+                  {saving ? 'Updating...' : 'Save Changes'}
+                </button>
+              </div>
           </div>
         </form>
       </div>
@@ -310,3 +326,8 @@ export default function CustomerDetail() {
     </div>
   );
 }
+
+
+
+
+

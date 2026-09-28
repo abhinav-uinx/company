@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
@@ -53,9 +53,9 @@ export default function InvoiceDetail() {
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
             <img src="/Assets/Company logo/main_logo.png" alt="Logo" style={{ width: '80px', height: 'auto', objectFit: 'contain' }} />
             <div>
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.5rem' }}>Medescort International</h2>
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.5rem' }}>MEDESCORT INTERNATIONAL</h2>
               <p style={{ margin: '5px 0', color: '#64748b' }}>123 Corporate Ave, Business City</p>
-              <p style={{ margin: 0, color: '#64748b' }}>support@company.com</p>
+              <p style={{ margin: 0, color: '#64748b' }}>support@medescortinternational.com</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -80,7 +80,7 @@ export default function InvoiceDetail() {
           {invoice.escort_missions && (
             <div style={{ textAlign: 'right' }}>
               <h4 style={{ color: '#0f172a', marginBottom: '10px' }}>Mission Context:</h4>
-              <p style={{ margin: 0, color: '#64748b' }}>{invoice.escort_missions.from_country} → {invoice.escort_missions.to_country}</p>
+              <p style={{ margin: 0, color: '#64748b' }}>{invoice.escort_missions.from_country} â†’ {invoice.escort_missions.to_country}</p>
             </div>
           )}
         </div>
@@ -195,3 +195,9 @@ export default function InvoiceDetail() {
     </div>
   );
 }
+
+
+
+
+
+

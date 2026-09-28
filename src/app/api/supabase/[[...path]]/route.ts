@@ -55,8 +55,10 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     headers,
   };
 
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    const buffer = await req.arrayBuffer();\n    if (buffer.byteLength > 0) fetchOptions.body = buffer;
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+    fetchOptions.body = req.body;
+    // @ts-ignore
+    fetchOptions.duplex = 'half';
   }
 
   // 4. Proxy the request

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
@@ -37,10 +37,10 @@ export default function Dashboard() {
       <header className="site-header">
         <div className="header-inner">
           <div className="brand">
-            <img src="/Assets/Company logo/main_logo.png" alt="Medescort Logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
             <div className="brand-word">
-              Medescort International
-              <span>Employee &amp; Admin Records Portal</span>
+              MEDESCORT INTERNATIONAL
+              <span>{userRole === 'admin' ? 'Admin Records Portal' : 'Employee Records Portal'}</span>
             </div>
           </div>
           <nav>
@@ -48,7 +48,7 @@ export default function Dashboard() {
             {userRole === 'admin' && (
               <Link className="navlink" href="/admin/directory">Directory</Link>
             )}
-            <Link className="navlink" href="/admin/reports">Reports</Link>
+            {userRole === 'admin' && <Link className="navlink" href="/admin/reports">Reports</Link>}
             <Link className="navlink" href="#">Help</Link>
           </nav>
           <div className="user-info" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -118,13 +118,15 @@ export default function Dashboard() {
             <Link className="service-open group" href="/vault"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
           </div>
 
-          <div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
+          {userRole === 'admin' && (
+<div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
             </div>
             <h3>Reports &amp; Excel Export</h3>
             <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
           </div>
+)}
 
 
           {userRole === 'admin' && (
@@ -172,10 +174,12 @@ export default function Dashboard() {
             <span>Directory</span>
           </Link>
         )}
-        <Link href="/admin/reports" className="bottom-nav-item">
-          <span className="material-symbols-outlined">bar_chart</span>
-          <span>Reports</span>
-        </Link>
+        {userRole === 'admin' && (
+          <Link href="/admin/reports" className="bottom-nav-item">
+            <span className="material-symbols-outlined">bar_chart</span>
+            <span>Reports</span>
+          </Link>
+        )}
         <Link href="#" className="bottom-nav-item">
           <span className="material-symbols-outlined">help</span>
           <span>Help</span>
@@ -184,3 +188,10 @@ export default function Dashboard() {
     </>
   );
 }
+
+
+
+
+
+
+

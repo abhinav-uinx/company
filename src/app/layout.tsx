@@ -1,8 +1,8 @@
-import './globals.css';
+﻿import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
 
 export const metadata = {
-  title: 'Company Portal',
+  title: 'MEDESCORT INTERNATIONAL',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,3 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
+
+
+
+
+

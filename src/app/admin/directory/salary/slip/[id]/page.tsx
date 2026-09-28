@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { supabaseAuth } from '@/lib/supabase';
@@ -58,8 +58,8 @@ export default function SalarySlipPage() {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #e2e8f0', paddingBottom: '25px', marginBottom: '30px' }}>
           <div>
-            <img src="/Assets/Company logo/main_logo.png" alt="Medescort Logo" style={{ height: '60px', marginBottom: '10px' }} />
-            <h1 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a', fontWeight: 700 }}>Medescort International</h1>
+            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '60px', marginBottom: '10px' }} />
+            <h1 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a', fontWeight: 700 }}>MEDESCORT INTERNATIONAL</h1>
             <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>Global Medical Logistics & Escort Services</p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -176,7 +176,7 @@ export default function SalarySlipPage() {
         {/* Footer */}
         <div style={{ marginTop: '50px', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
           <p style={{ margin: 0 }}>This is a system generated payslip and does not require a physical signature if issued digitally.</p>
-          <p style={{ margin: '5px 0 0 0' }}>Medescort International &copy; {new Date().getFullYear()}</p>
+          <p style={{ margin: '5px 0 0 0' }}>MEDESCORT INTERNATIONAL &copy; {new Date().getFullYear()}</p>
         </div>
 
       </div>
@@ -206,3 +206,8 @@ export default function SalarySlipPage() {
     </div>
   );
 }
+
+
+
+
+

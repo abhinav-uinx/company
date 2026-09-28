@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -119,7 +119,7 @@ export default function CreateInvoice() {
             <label>Link Escort Mission (Optional)</label>
             <select name="mission_id" value={formData.mission_id} onChange={handleChange}>
               <option value="">-- No Mission Linked --</option>
-              {filteredMissions.map(m => <option key={m.id} value={m.id}>{m.from_country} → {m.to_country}</option>)}
+              {filteredMissions.map(m => <option key={m.id} value={m.id}>{m.from_country} â†’ {m.to_country}</option>)}
             </select>
           </div>
 
@@ -194,3 +194,9 @@ export default function CreateInvoice() {
     </div>
   );
 }
+
+
+
+
+
+

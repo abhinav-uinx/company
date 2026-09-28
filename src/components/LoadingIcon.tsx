@@ -1,4 +1,4 @@
-export default function LoadingIcon() {
+﻿export default function LoadingIcon() {
   return (
     <div className="loading-container">
       <div className="stage">
@@ -7,8 +7,11 @@ export default function LoadingIcon() {
           <div className="logo-layer logo-lit"></div>
           <div className="charge-mask"><div className="band"></div></div>
         </div>
-        <div className="loading-label">Loading…</div>
+        <div className="loading-label">Loadingâ€¦</div>
       </div>
     </div>
   );
 }
+
+
+

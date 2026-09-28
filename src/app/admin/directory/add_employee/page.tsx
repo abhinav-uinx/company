@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
@@ -17,14 +17,22 @@ export default function AddEmployee() {
   const [newPermission, setNewPermission] = useState('active');
   const [newPermissions, setNewPermissions] = useState(['customers', 'escorts', 'documentation', 'invoices', 'reports']);
   const [deptList, setDeptList] = useState<any[]>([]);
+  const [rolesList, setRolesList] = useState<any[]>([]);
+  const [selectedRole, setSelectedRole] = useState('');
   const [addMsg, setAddMsg] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    const loadDepartments = async () => {
-      const { data } = await supabaseAuth.from('departments').select('*').order('name');
-      if (data) setDeptList(data);
+    const loadData = async () => {
+      const { data: dData } = await supabaseAuth.from('departments').select('*').order('name');
+      if (dData) setDeptList(dData);
+      
+      const { data: rData } = await supabaseAuth.from('roles').select('*').order('role_name');
+      if (rData) {
+        setRolesList(rData);
+        if (rData.length > 0) setSelectedRole(rData[0].id);
+      }
     };
-    loadDepartments();
+    loadData();
   }, []);
 
   const handleAddEmployee = async (e: React.FormEvent) => {
@@ -36,7 +44,8 @@ export default function AddEmployee() {
       password: newPassword,
       email: newEmail,
       department_id: newDeptId || null,
-      status: newPermission
+      status: newPermission,
+      role: selectedRole || null
     }]);
 
     if (error) {
@@ -52,9 +61,9 @@ export default function AddEmployee() {
       <header className="site-header">
         <div className="header-inner">
           <div className="brand">
-            <img src="/Assets/Company logo/main_logo.png" alt="Medescort Logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
             <div className="brand-word">
-              Medescort International
+              MEDESCORT INTERNATIONAL
               <span>Employee &amp; Admin Records Portal</span>
             </div>
           </div>
@@ -98,7 +107,7 @@ export default function AddEmployee() {
 
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>Email Address *</label>
-                  <input type="email" placeholder="employee@company.com" required value={newEmail} onChange={e => setNewEmail(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none' }} onFocus={e => e.target.style.borderColor = '#0ea5e9'} onBlur={e => e.target.style.borderColor = '#cbd5e1'} />
+                  <input type="email" placeholder="employee@medescortinternational.com" required value={newEmail} onChange={e => setNewEmail(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none' }} onFocus={e => e.target.style.borderColor = '#0ea5e9'} onBlur={e => e.target.style.borderColor = '#cbd5e1'} />
                 </div>
               </div>
             </div>
@@ -142,13 +151,23 @@ export default function AddEmployee() {
                 <h2 style={{ fontSize: '1.2rem', color: '#0f172a', margin: 0 }}>Roles &amp; Access</h2>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '25px' }}>
                 <div className="form-group">
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>Department</label>
                   <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none', appearance: 'none', cursor: 'pointer' }} value={newDeptId} onChange={e => setNewDeptId(e.target.value)}>
                     <option value="">No Department (N/A)</option>
                     {deptList.map(d => (
                       <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>Role</label>
+                  <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none', appearance: 'none', cursor: 'pointer' }} value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
+                    <option value="">No Role</option>
+                    {rolesList.map(r => (
+                      <option key={r.id} value={r.id}>{r.role_name}</option>
                     ))}
                   </select>
                 </div>
@@ -209,3 +228,11 @@ export default function AddEmployee() {
     </>
   );
 }
+
+
+
+
+
+
+
+

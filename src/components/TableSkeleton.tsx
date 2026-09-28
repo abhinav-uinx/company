@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React from 'react';
 
 export default function TableSkeleton({ rows = 5, cols = 5 }) {
@@ -19,3 +19,6 @@ export default function TableSkeleton({ rows = 5, cols = 5 }) {
     </>
   );
 }
+
+
+

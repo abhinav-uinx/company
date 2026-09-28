@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
@@ -15,16 +15,24 @@ export default function Vault() {
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+
+
   
   const handleDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} document(s)? This will also permanently delete all associated uploaded files.`)) return;
-    
+    setDeleteIds(selectedIds);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    setShowConfirmModal(false);
     setLoading(true);
-    const docsToDelete = documents.filter(d => selectedIds.includes(d.id));
+    const docsToDelete = documents.filter(d => deleteIds.includes(d.id));
 
     // 1. Delete DB Records
-    const { error } = await supabaseAuth.from('medif_records').delete().in('id', selectedIds);
+    const { error } = await supabaseAuth.from('medif_records').delete().in('id', deleteIds);
     if (error) {
       setError("Delete failed: " + error.message);
       setLoading(false);
@@ -180,14 +188,14 @@ export default function Vault() {
       <header className="top-nav" style={{ padding: '20px', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
         <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div className="logo" style={{ width: '30px', height: '30px', background: '#0B1220', borderRadius: '6px' }}></div>
-          <span className="brand-text" style={{ fontWeight: 700, fontSize: '1.2rem', color: '#0B1220' }}>Company HR</span>
+          <span className="brand-text" style={{ fontWeight: 700, fontSize: '1.2rem', color: '#0B1220' }}>MEDESCORT INTERNATIONAL HR</span>
         </div>
       </header>
 
       <main className="vault-container">
         <div className="vault-header">
           <div>
-            <Link href="/user/dashboard" className="back-btn"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard</Link>
+            <Link href="/dashboard" className="back-btn"><span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard</Link>
             <h1 style={{ marginTop: '15px' }}>Document Vault</h1>
             <p style={{ color: '#64748b', marginTop: '5px' }}>All generated MEDIFs and employee documents are stored here.</p>
           </div>
@@ -299,3 +307,10 @@ export default function Vault() {
     </>
   );
 }
+
+
+
+
+
+
+

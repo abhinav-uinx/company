@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getSession, checkAuthStatus, logout } from '@/app/actions/auth';
@@ -173,3 +173,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     </>
   );
 }
+
+
+

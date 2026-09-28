@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { getSession, logout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ export default function Directory() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
+  const [rolesList, setRolesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
     
@@ -36,11 +37,13 @@ export default function Directory() {
 
   const loadUsers = async () => {
     setLoading(true);
-    let { data, error } = await supabaseAuth.from('employees').select('*, departments(name)').order('name');
+    let { data, error } = await supabaseAuth.from('employees').select('*, departments(name), roles(role_name)').order('name');
     if (error && error.message.includes('relationship')) {
       const basic = await supabaseAuth.from('employees').select('*').order('name');
       data = basic.data;
     }
+    const { data: rData } = await supabaseAuth.from('roles').select('*').order('role_name');
+    if (rData) setRolesList(rData);
     const depts = new Set<string>();
     (data || []).forEach(u => depts.add(u.departments?.name || u.department || 'N/A'));
     setDepartments(Array.from(depts));
@@ -50,6 +53,10 @@ export default function Directory() {
 
   const updateStatus = async (iqama: string, status: string) => {
     await supabaseAuth.from('employees').update({ status }).eq('iqama_number', iqama);
+  };
+
+  const updateRole = async (iqama: string, role_id: string) => {
+    await supabaseAuth.from('employees').update({ role: role_id || null }).eq('iqama_number', iqama);
   };
 
   const handleLogout = async () => {
@@ -99,7 +106,7 @@ export default function Directory() {
               <path d="M13 26V14h5.2c2.5 0 4.1 1.4 4.1 3.6 0 1.5-.8 2.6-2.1 3.1l2.5 5.3h-2.9l-2.2-4.8h-1.9V26H13Zm2.7-6.9h2.2c1.1 0 1.8-.6 1.8-1.5s-.7-1.5-1.8-1.5h-2.2v3Z" fill="var(--accent)"/>
             </svg>
             <div className="brand-word">
-              Your Company Name
+              MEDESCORT INTERNATIONAL
               <span>Employee &amp; Admin Records Portal</span>
             </div>
           </div>
@@ -174,11 +181,12 @@ export default function Directory() {
                 <th>Name</th>
                 <th>Iqama / Email</th>
                 <th>Department</th>
+                <th>Role</th>
                 <th>Permission Level</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={4} style={{padding: "40px", textAlign: "center", position: "relative", height: "300px"}}><div style={{position:"absolute", top:"50%", left:"50%", transform:"translate(-50%, -50%)"}}><div className="loader" style={{width: "120px", transform: "scale(0.8)"}}><div className="logo-layer logo-dim"></div><div className="logo-layer logo-lit"></div><div className="charge-mask"><div className="band"></div></div></div><div className="loading-label" style={{color: "#334155", marginTop: "10px"}}>Loading Data...</div></div></td></tr> : filteredUsers.map(user => (
+              {loading ? <tr><td colSpan={5} style={{padding: "40px", textAlign: "center", position: "relative", height: "300px"}}><div style={{position:"absolute", top:"50%", left:"50%", transform:"translate(-50%, -50%)"}}><div className="loader" style={{width: "120px", transform: "scale(0.8)"}}><div className="logo-layer logo-dim"></div><div className="logo-layer logo-lit"></div><div className="charge-mask"><div className="band"></div></div></div><div className="loading-label" style={{color: "#334155", marginTop: "10px"}}>Loading Data...</div></div></td></tr> : filteredUsers.map(user => (
                 <tr key={user.iqama_number}>
                   <td>{user.name || 'N/A'}</td>
                   <td>
@@ -186,6 +194,19 @@ export default function Directory() {
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{user.email || ''}</span>
                   </td>
                   <td>{user.departments?.name || user.department || 'N/A'}</td>
+                  <td>
+                    <span style={{ 
+                      padding: '4px 8px', 
+                      borderRadius: '12px', 
+                      background: user.roles?.role_name === 'admin' ? '#fef08a' : (user.roles?.role_name === 'staff' ? '#bfdbfe' : '#f1f5f9'), 
+                      color: user.roles?.role_name === 'admin' ? '#854d0e' : (user.roles?.role_name === 'staff' ? '#1e40af' : '#475569'),
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      textTransform: 'capitalize'
+                    }}>
+                      {user.roles?.role_name || 'No Role'}
+                    </span>
+                  </td>
                   <td>
                     <select defaultValue={user.status} onChange={e => updateStatus(user.iqama_number, e.target.value)}>
                       <option value="active">Full Access (View + Read)</option>
@@ -204,5 +225,12 @@ export default function Directory() {
     </>
   );
 }
+
+
+
+
+
+
+
 
 

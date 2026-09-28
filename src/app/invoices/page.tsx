@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -37,7 +37,7 @@ export default function InvoicesList() {
   return (
     <>
       <div className={styles.container}>
-        <Link href="/user/dashboard" className={styles.backBtn}>
+        <Link href="/dashboard" className={styles.backBtn}>
           <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
         </Link>
         
@@ -155,4 +155,10 @@ export default function InvoicesList() {
     </>
   );
 }
+
+
+
+
+
+
 

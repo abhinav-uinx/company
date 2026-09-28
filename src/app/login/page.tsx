@@ -1,31 +1,60 @@
-'use client';
-import { useState, Suspense } from 'react';
+﻿'use client';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import LoadingIcon from '@/components/LoadingIcon';
-import { login } from '@/app/actions/auth';
+import { login, updatePassword } from '@/app/actions/auth';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+    const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+    const [timerDisplay, setTimerDisplay] = useState('');
+
+    useEffect(() => {
+        if (!lockoutUntil) return;
+        const interval = setInterval(() => {
+            const remaining = lockoutUntil - Date.now();
+            if (remaining <= 0) {
+                setLockoutUntil(null);
+                setError('');
+                clearInterval(interval);
+            } else {
+                setTimerDisplay(Math.ceil(remaining / 1000) + 's');
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [lockoutUntil]);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [setupPasswordMode, setSetupPasswordMode] = useState(false);
+  const [setupIdentifier, setSetupIdentifier] = useState('');
+  const [tempPass, setTempPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+
   // 'idle' | 'authenticating' | 'done'
   const [phase, setPhase] = useState<'idle' | 'authenticating' | 'done'>('idle');
+
+  const isPassValid = (pass: string) => {
+    return pass.length >= 12 && (pass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length >= 3 && /[0-9]/.test(pass) && /[A-Z]/.test(pass);
+  };
+  const specCount = (pass: string) => (pass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length;
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await login(username, password);
+      const res: any = await login(username, password);
       let targetUrl = "";
       if (res.success) {
-        targetUrl = res.role === "admin" ? "/admin/dashboard" : "/user/dashboard";
-        // 1. Start animation — slide right panel out, expand left
+        if (res.mustChangePassword) { setSetupPasswordMode(true); setSetupIdentifier(res.identifier); setTempPass(res.tempPassword || password); setLoading(false); return; } targetUrl = res.role === "admin" ? "/admin/dashboard" : "/user/dashboard";
+        // 1. Start animation â€” slide right panel out, expand left
         setPhase('authenticating');
 
         // 2. After logo spin + "Authenticating" text (~2.2s), fade to white then push router
@@ -115,7 +144,7 @@ function LoginContent() {
         overflow: 'hidden',
       }}>
 
-        {/* ── Left brand panel ── */}
+        {/* â”€â”€ Left brand panel â”€â”€ */}
         <div style={{
           flex: isAuth ? '1 0 100%' : '1',
           background: 'linear-gradient(160deg, #0a1f4e 0%, #0d2b6b 45%, #091628 100%)',
@@ -134,7 +163,7 @@ function LoginContent() {
           <div style={{ position:'absolute', width:'500px', height:'500px', borderRadius:'50%', background:'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)', top:'-200px', left:'-150px', pointerEvents:'none' }} />
           <div style={{ position:'absolute', width:'400px', height:'400px', borderRadius:'50%', background:'radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)', bottom:'-100px', right:'-100px', pointerEvents:'none' }} />
 
-          {/* Logo — normal in idle, spin-land in auth */}
+          {/* Logo â€” normal in idle, spin-land in auth */}
           <div style={{ position: 'relative', zIndex: 2 }}>
             {isAuth ? (
               <Image
@@ -184,7 +213,7 @@ function LoginContent() {
             /* Normal tagline */
             <div style={{ position:'relative', zIndex:2, textAlign:'center' }}>
               <h1 style={{ fontSize:'1.625rem', fontWeight:700, color:'#fff', letterSpacing:'-0.5px', margin:'0 0 10px' }}>
-                Medical Escort Portal
+                MEDESCORT INTERNATIONAL
               </h1>
               <p style={{ fontSize:'0.9rem', color:'rgba(255,255,255,0.4)', lineHeight:1.65, maxWidth:'300px', margin:'0 auto' }}>
                 Authorized personnel only. Manage missions, patients, and documentation securely.
@@ -193,11 +222,11 @@ function LoginContent() {
           )}
 
           <div style={{ position:'absolute', bottom:'24px', left:0, right:0, textAlign:'center', fontSize:'0.7rem', color:'rgba(255,255,255,0.2)', zIndex:2 }}>
-            INTERNAL SYSTEM • RESTRICTED ACCESS
+            INTERNAL SYSTEM â€¢ RESTRICTED ACCESS
           </div>
         </div>
 
-        {/* ── Right form panel ── */}
+        {/* â”€â”€ Right form panel â”€â”€ */}
         <div style={{
           width: isAuth ? '0' : '420px',
           flexShrink: 0,
@@ -230,7 +259,65 @@ function LoginContent() {
               </div>
             )}
 
-            <form onSubmit={handleLogin} suppressHydrationWarning>
+            
+            {setupPasswordMode ? (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const isValid = isPassValid(newPass);
+                if (!isValid) return;
+                setLoading(true);
+                const res = await updatePassword(setupIdentifier, tempPass, newPass);
+                if (res.success) {
+                  router.replace('/user/dashboard');
+                } else {
+                  setError(res.error || 'Failed to update password');
+                  setLoading(false);
+                }
+              }} suppressHydrationWarning>
+                <div style={{ marginBottom:'16px' }}>
+                  <label style={{ display:'block', marginBottom:'6px', fontSize:'0.8125rem', fontWeight:600, color:'#374151' }}>
+                    New Password
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter new password"
+                    required
+                    value={newPass}
+                    onChange={e => setNewPass(e.target.value)}
+                    style={{ width:'100%', padding:'11px 14px', background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:'8px', fontSize:'0.9375rem', color:'#0f172a', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor = '#1d4ed8'}
+                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  />
+                </div>
+                <div style={{ marginBottom:'20px', fontSize: '0.8rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ color: newPass.length >= 12 ? '#10b981' : '#64748b' }}>
+                    {newPass.length >= 12 ? '✓' : '✗'} {newPass.length}/12 length
+                  </div>
+                  <div style={{ color: (newPass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length >= 3 ? '#10b981' : '#64748b' }}>
+                    {specCount(newPass) >= 3 ? '✓' : '✗'} {specCount(newPass)}/3 special character
+                  </div>
+                  <div style={{ color: /[0-9]/.test(newPass) ? '#10b981' : '#64748b' }}>
+                    {/[0-9]/.test(newPass) ? '✓' : '✗'} numbers
+                  </div>
+                  <div style={{ color: /[A-Z]/.test(newPass) ? '#10b981' : '#64748b' }}>
+                    {/[A-Z]/.test(newPass) ? '✓' : '✗'} caps character
+                  </div>
+                </div>
+                {error && (
+                  <div style={{ marginBottom:'16px', padding:'11px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', color:'#b91c1c', fontSize:'0.875rem', textAlign:'center' }}>
+                    {error}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading || !isPassValid(newPass)}
+                  style={{ width:'100%', padding:'13px', background: (loading || !isPassValid(newPass)) ? '#94a3b8' : '#1d3461', color:'#fff', border:'none', borderRadius:'8px', fontWeight:700, fontSize:'0.9375rem', cursor: 'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 14px rgba(13,43,107,0.3)' }}
+                >
+                  {loading ? 'Updating...' : 'Set Password'}
+                </button>
+              </form>
+            ) : (
+<form onSubmit={handleLogin} suppressHydrationWarning>
               <div style={{ marginBottom:'16px' }}>
                 <label style={{ display:'block', marginBottom:'6px', fontSize:'0.8125rem', fontWeight:600, color:'#374151' }}>
                   Email / Username
@@ -286,20 +373,22 @@ function LoginContent() {
               {error && (
                 <div style={{ marginBottom:'16px', padding:'11px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', color:'#b91c1c', fontSize:'0.875rem', textAlign:'center' }}>
                   {error}
+                  {lockoutUntil && <div style={{marginTop: '5px', fontWeight: 'bold'}}>Try again in {timerDisplay}</div>}
                 </div>
               )}
 
               <button
                 type="submit"
-                disabled={loading}
-                style={{ width:'100%', padding:'13px', background: loading ? '#94a3b8' : '#1d3461', color:'#fff', border:'none', borderRadius:'8px', fontWeight:700, fontSize:'0.9375rem', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 14px rgba(13,43,107,0.3)' }}
+                disabled={loading || !!lockoutUntil}
+                style={{ width:'100%', padding:'13px', background: loading ? '#94a3b8' : '#1d3461', color:'#fff', border:'none', borderRadius:'8px', fontWeight:700, fontSize:'0.9375rem', cursor: (loading || !!lockoutUntil) ? 'not-allowed' : 'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 14px rgba(13,43,107,0.3)' }}
               >
                 {loading ? 'Verifying...' : 'Sign In'}
               </button>
             </form>
+            )}
 
             <p style={{ marginTop:'24px', textAlign:'center', fontSize:'0.72rem', color:'#94a3b8' }}>
-              © 2025 Medical Escort. All rights reserved.
+              Â© 2025 MEDESCORT INTERNATIONAL. All rights reserved.
             </p>
           </div>
         </div>
@@ -312,3 +401,13 @@ function LoginContent() {
 export default function Login() {
   return <Suspense fallback={<LoadingIcon />}><LoginContent /></Suspense>;
 }
+
+
+
+
+
+
+
+
+
+

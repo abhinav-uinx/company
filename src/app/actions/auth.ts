@@ -8,6 +8,18 @@ import { UAParser } from 'ua-parser-js';
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
 
 export async function login(inputVal: string, password: string) {
+    // Check rate limit first
+    const { data: attemptData } = await supabaseAdmin.from('login_attempts').select('*').eq('identifier', inputVal).single();
+    
+    if (attemptData && attemptData.lockout_until) {
+        const lockoutTime = new Date(attemptData.lockout_until).getTime();
+        const now = Date.now();
+        if (lockoutTime > now) {
+            return { success: false, error: 'Too many attempts. Account locked.', lockout_until: attemptData.lockout_until };
+        } else if (attemptData.attempts >= 10) {
+            await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
+        }
+    }
   try {
     // 1. Check Admins
     let { data: adminMatch } = await supabaseAdmin.from('admins').select('*').eq('username', inputVal).eq('password', password).single();
@@ -20,7 +32,10 @@ export async function login(inputVal: string, password: string) {
       if (adminMatch.status === 'disabled') {
         return { success: false, error: 'Account disabled. Please contact admin.' };
       }
-      await createSession(adminMatch.username, 'admin');
+      if (attemptData && attemptData.attempts > 0) {
+            await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
+        }
+        await createSession(adminMatch.username, 'admin');
       return { success: true, role: 'admin' };
     }
 
@@ -35,11 +50,28 @@ export async function login(inputVal: string, password: string) {
       if (empMatch.status === 'disabled') {
         return { success: false, error: 'Account disabled. Please contact admin.' };
       }
+      if (attemptData && attemptData.attempts > 0) {
+            await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
+      }
+      if (empMatch.must_change_password) {
+          return { success: true, role: 'employee', mustChangePassword: true, identifier: empMatch.iqama_number, tempPassword: password };
+      }
       await createSession(empMatch.iqama_number, 'employee');
       return { success: true, role: 'employee' };
     }
 
-    return { success: false, error: 'Invalid credentials' };
+    // Handle Failure
+    const currentAttempts = attemptData ? attemptData.attempts + 1 : 1;
+    const updates: any = { identifier: inputVal, attempts: currentAttempts, last_attempt: new Date().toISOString() };
+    if (currentAttempts >= 10) {
+        updates.lockout_until = new Date(Date.now() + 60 * 1000).toISOString();
+    }
+    await supabaseAdmin.from('login_attempts').upsert([updates]);
+    
+    if (currentAttempts >= 10) {
+        return { success: false, error: 'Too many attempts. Account locked for 1 minute.', lockout_until: updates.lockout_until };
+    }
+    return { success: false, error: 'Invalid credentials. ' + (10 - currentAttempts) + ' attempts remaining.' };
 
   } catch (err: any) {
     return { success: false, error: 'An error occurred during login' };
@@ -207,3 +239,14 @@ export async function checkAuthStatus(loggedInUser: string, role: string) {
 
 
 
+
+
+
+export async function updatePassword(identifier: string, oldPass: string, newPass: string) {
+    const { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', identifier).eq('password', oldPass).single();
+    if (!empMatch) return { success: false, error: 'Invalid credentials' };
+    
+    await supabaseAdmin.from('employees').update({ password: newPass, must_change_password: false }).eq('iqama_number', identifier);
+    await createSession(empMatch.iqama_number, 'employee');
+    return { success: true };
+}

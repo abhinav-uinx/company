@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -52,7 +52,7 @@ export default function EscortsList() {
   return (
     <>
       <div className={styles.container}>
-        <Link href="/user/dashboard" className={styles.backBtn}>
+        <Link href="/dashboard" className={styles.backBtn}>
           <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
         </Link>
         
@@ -83,7 +83,7 @@ export default function EscortsList() {
                 missions.map(mission => (
                   <tr key={mission.id}>
                     <td style={{ fontWeight: 500 }}>{mission.customers?.name || 'Unknown Customer'}</td>
-                    <td>{mission.from_country} {mission.layover_country ? '→ ' + mission.layover_country + ' ' : ''}→ {mission.to_country}</td>
+                    <td>{mission.from_country} {mission.layover_country ? 'â†’ ' + mission.layover_country + ' ' : ''}â†’ {mission.to_country}</td>
                     <td>{mission.flight_date || 'TBD'}</td>
                     <td>{mission.employee_name || mission.escort_employee_iqama || 'Unassigned'}</td>
                     <td>
@@ -161,7 +161,7 @@ export default function EscortsList() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Route</div>
-                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewMission.from_country} {viewMission.layover_country ? '→ ' + viewMission.layover_country + ' ' : ''}→ {viewMission.to_country}</div>
+                    <div style={{ color: '#0f172a', fontWeight: 500 }}>{viewMission.from_country} {viewMission.layover_country ? 'â†’ ' + viewMission.layover_country + ' ' : ''}â†’ {viewMission.to_country}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Required Date</div>
@@ -223,3 +223,9 @@ export default function EscortsList() {
     </>
   );
 }
+
+
+
+
+
+
