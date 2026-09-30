@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
 
-export default function AddEmployee() {
+export default function AddEmployee(props: any) {
+  const embedded = props?.embedded ?? false;
   const router = useRouter();
   
   // Add Employee Form State
@@ -56,39 +57,23 @@ export default function AddEmployee() {
     }
   };
 
-  return (
-    <>
-      <header className="site-header">
-        <div className="header-inner">
-          <div className="brand">
-            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
-            <div className="brand-word">
-              MEDESCORT INTERNATIONAL
-              <span>Employee &amp; Admin Records Portal</span>
-            </div>
-          </div>
-          <nav>
-            <Link className="navlink" href="/admin/dashboard">Dashboard</Link>
-            <Link className="navlink" href="/admin/directory" style={{ color: 'var(--primary)' }}>Directory</Link>
-          </nav>
+  const formContent = (
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      {!embedded && (
+        <div style={{ marginBottom: '30px' }}>
+          <Link href="/admin/directory" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0ea5e9', textDecoration: 'none', marginBottom: '15px', fontWeight: 600, fontSize: '0.9rem' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+            Back to Directory
+          </Link>
+          <h1 style={{ fontSize: '1.8rem', color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Add New Employee</h1>
+          <p style={{ color: '#64748b', margin: 0, fontSize: '1rem' }}>Create a new employee profile and generate their secure login.</p>
         </div>
-      </header>
-
-      <main className="dashboard-main" style={{ padding: '40px 20px', background: '#f8fafc', minHeight: 'calc(100vh - 60px)' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ marginBottom: '30px' }}>
-            <Link href="/admin/directory" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0ea5e9', textDecoration: 'none', marginBottom: '15px', fontWeight: 600, fontSize: '0.9rem' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
-              Back to Directory
-            </Link>
-            <h1 style={{ fontSize: '1.8rem', color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Add New Employee</h1>
-            <p style={{ color: '#64748b', margin: 0, fontSize: '1rem' }}>Create a new employee profile and generate their secure login.</p>
-          </div>
-          
-          <form onSubmit={handleAddEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-            
-            {/* Section 1: Personal Info */}
-            <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0' }}>
+      )}
+      
+      <form onSubmit={handleAddEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        
+        {/* Section 1: Personal Info */}
+        <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
                 <span className="material-symbols-outlined" style={{ color: '#0ea5e9', fontSize: '24px', background: '#e0f2fe', padding: '8px', borderRadius: '8px' }}>person</span>
                 <h2 style={{ fontSize: '1.2rem', color: '#0f172a', margin: 0 }}>Personal Details</h2>
@@ -223,7 +208,32 @@ export default function AddEmployee() {
               </div>
             )}
           </form>
+    </div>
+  );
+
+  if (embedded) return formContent;
+
+  return (
+    <>
+      <header className="site-header">
+        <div className="header-inner">
+          <div className="brand">
+            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
+            <div className="brand-word">
+              MEDESCORT INTERNATIONAL
+              <span>Employee &amp; Admin Records Portal</span>
+            </div>
+          </div>
+          <nav>
+            <Link className="navlink" href="/admin/dashboard">Dashboard</Link>
+            <Link className="navlink" href="/admin/user">Users</Link>
+            <Link className="navlink" href="/admin/directory" style={{ color: 'var(--primary)' }}>Directory</Link>
+          </nav>
         </div>
+      </header>
+
+      <main className="dashboard-main" style={{ padding: '40px 20px', background: '#f8fafc', minHeight: 'calc(100vh - 60px)' }}>
+        {formContent}
       </main>
     </>
   );

@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
-import styles from '../invoices.module.css';
+import styles from '../../invoices.module.css';
 
-export default function CreateInvoice() {
+export default function EditInvoice() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
   const [docServiceTypes, setDocServiceTypes] = useState<any[]>([]);
@@ -18,7 +22,7 @@ export default function CreateInvoice() {
   const [otherExpensesPrices, setOtherExpensesPrices] = useState<Record<string, number>>({});
   const [fullAmountReceived, setFullAmountReceived] = useState(false);
   const [useCurrentDate, setUseCurrentDate] = useState(true);
-  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customDate, setCustomDate] = useState('');
 
   const fixedServices = ['Ambulance Services (SAUDI)', 'Ambulance Service (INDIA)', 'Portable Ventilator'];
 
@@ -36,17 +40,49 @@ export default function CreateInvoice() {
 
   useEffect(() => {
     async function loadData() {
-      const [pRes, mRes, dRes] = await Promise.all([
+      const [pRes, mRes, invRes, dRes] = await Promise.all([
         supabaseAuth.from('customers').select('id, name'),
         supabaseAuth.from('escort_missions').select('id, customer_id, from_country, to_country'),
+        supabaseAuth.from('invoices').select('*').eq('id', id).single(),
         supabaseAuth.from('doc_service_types').select('*')
       ]);
       if (pRes.data) setCustomers(pRes.data);
       if (mRes.data) setMissions(mRes.data);
       if (dRes.data) setDocServiceTypes(dRes.data);
+      
+      if (invRes.data) {
+        if (invRes.data.other_expenses_details && invRes.data.other_expenses_details.length > 0) {
+          setShowOtherExpenses(true);
+          if (typeof invRes.data.other_expenses_details[0] === 'object') {
+            setSelectedOtherExpenses(invRes.data.other_expenses_details.map((x: any) => x.name));
+            const prices: Record<string, number> = {};
+            invRes.data.other_expenses_details.forEach((x: any) => { prices[x.name] = x.amount; });
+            setOtherExpensesPrices(prices);
+          } else {
+            setSelectedOtherExpenses(invRes.data.other_expenses_details);
+          }
+        }
+        setFormData({
+          customer_id: invRes.data.customer_id || '',
+          mission_id: invRes.data.mission_id || '',
+          medical_escort_charges: invRes.data.medical_escort_charges || 0,
+          ticket_charges: invRes.data.ticket_charges || 0,
+          documentation_charges: invRes.data.documentation_charges || 0,
+          other_expenses: invRes.data.other_expenses || 0,
+          tax_vat_percent: invRes.data.tax_vat_percent || 0,
+          discount: invRes.data.discount || 0,
+          advance_payment: invRes.data.advance_payment || 0
+        });
+        
+        if (invRes.data.created_at) {
+          setCustomDate(new Date(invRes.data.created_at).toISOString().split('T')[0]);
+          setUseCurrentDate(false);
+        }
+      }
+      setDataLoading(false);
     }
     loadData();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     async function loadCustomerGeneralServices() {
@@ -119,26 +155,25 @@ export default function CreateInvoice() {
 
     if (!useCurrentDate && customDate) {
       payload.created_at = new Date(customDate).toISOString();
+    } else if (useCurrentDate) {
+      payload.created_at = new Date().toISOString();
     }
 
-    const { error, data } = await supabaseAuth.from('invoices').insert([payload]).select().single();
+    const { error } = await supabaseAuth.from('invoices').update(payload).eq('id', id);
     
     if (error) {
       alert('Error: ' + error.message);
       setLoading(false);
     } else {
-      if (totals.actual_advance > 0) {
-        await supabaseAuth.from('payment_history').insert([{
-          invoice_id: data.id,
-          amount: totals.actual_advance,
-          payment_method: 'Initial Advance'
-        }]);
-      }
       router.push('/invoices');
     }
   };
 
   const filteredMissions = formData.customer_id ? missions.filter(m => m.customer_id === formData.customer_id) : [];
+
+  if (dataLoading) {
+    return <div className={styles.container}>Loading...</div>;
+  }
 
   return (
     <div className={styles.container}>
@@ -147,12 +182,12 @@ export default function CreateInvoice() {
       </Link>
       
       <div className={styles.header}>
-        <h1 className={styles.title}>Generate New Invoice</h1>
+        <h1 className={styles.title}>Edit Invoice</h1>
       </div>
 
       <div className={styles.card}>
         <form onSubmit={handleSubmit} className={styles.formGrid}>
-          
+
           <div className={styles.formSection}>Client Details</div>
           
           <div className={styles.formGroup}>
@@ -174,12 +209,12 @@ export default function CreateInvoice() {
           <div style={{ gridColumn: '1 / -1', backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontWeight: 600, color: '#334155', fontSize: '0.95rem' }}>Invoice Issue Date</span>
-              <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Set to today by default. Uncheck to backdate or future-date this invoice.</span>
+              <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Check to forcefully update the invoice date to today, or uncheck to specify a custom date.</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input type="checkbox" id="use_current_date" checked={useCurrentDate} onChange={e => setUseCurrentDate(e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }} />
-                <label htmlFor="use_current_date" style={{ margin: 0, fontWeight: 500, color: '#475569', cursor: 'pointer' }}>Use Current Date</label>
+                <label htmlFor="use_current_date" style={{ margin: 0, fontWeight: 500, color: '#475569', cursor: 'pointer' }}>Update to Today</label>
               </div>
               {!useCurrentDate && (
                 <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontFamily: 'inherit', color: '#334155', fontWeight: 500, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }} />
@@ -312,16 +347,10 @@ export default function CreateInvoice() {
           </div>
 
           <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Generating...' : 'Generate Invoice'}
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </form>
       </div>
     </div>
   );
 }
-
-
-
-
-
-

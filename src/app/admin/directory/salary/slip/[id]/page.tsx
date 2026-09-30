@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { supabaseAuth } from '@/lib/supabase';
@@ -41,7 +41,7 @@ export default function SalarySlipPage() {
       
       {/* Non-printable controls */}
       <div className="no-print" style={{ maxWidth: '800px', margin: '0 auto 20px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link href="/admin/directory/salary" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <Link href="/admin/directory?tab=salary" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span> Back to Salary List
         </Link>
         <button 

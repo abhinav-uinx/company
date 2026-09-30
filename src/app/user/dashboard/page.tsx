@@ -1,31 +1,16 @@
-﻿'use client';
-import { useEffect, useState } from 'react';
+'use client';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
-import { getSession, logout } from '@/app/actions/auth';
+import { useAuth } from '@/components/AuthGuard';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [userName, setUserName] = useState('Loading...');
-  const [userRole, setUserRole] = useState('');
+  const { name, username, role, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  
-  useEffect(() => {
-    const init = async () => {
-      const session = await getSession();
-      if (!session) { router.replace('/login'); return; }
-      const role = session.role as string;
-      const loggedInUser = session.username as string;
-      setUserRole(role);
-      const table = role === 'admin' ? 'admins' : 'employees';
-      const idField = role === 'admin' ? 'username' : 'iqama_number';
-      const { data } = await supabaseAuth.from(table).select('*').eq(idField, loggedInUser).single();
-      if (data) setUserName(data.name || data.username || loggedInUser);
-    };
-    init();
-  }, [router]);
 
+  const userName = name || username || 'Employee';
+  const userRole = role || 'employee';
 
   const handleLogout = async () => {
     await logout();
@@ -119,15 +104,14 @@ export default function Dashboard() {
           </div>
 
           {userRole === 'admin' && (
-<div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
-            <div className="service-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+            <div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
+              <div className="service-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+              </div>
+              <h3>Reports &amp; Excel Export</h3>
+              <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
             </div>
-            <h3>Reports &amp; Excel Export</h3>
-            <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
-          </div>
-)}
-
+          )}
 
           {userRole === 'admin' && (
             <div className="service-card admin-only" onClick={() => router.push('#')} style={{ cursor: 'pointer' }}>
@@ -188,10 +172,3 @@ export default function Dashboard() {
     </>
   );
 }
-
-
-
-
-
-
-

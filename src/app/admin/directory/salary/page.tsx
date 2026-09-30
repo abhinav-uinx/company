@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -7,7 +7,8 @@ import styles from '@/app/customers/customers.module.css';
 
 import TableSkeleton from '@/components/TableSkeleton';
 
-export default function SalaryPage() {
+export default function SalaryPage(props: any) {
+  const embedded = props?.embedded ?? false;
   const [salaries, setSalaries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,61 +48,77 @@ export default function SalaryPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <Link href="/admin/directory" className={styles.backBtn}>
-        <span className="material-symbols-outlined">arrow_back</span> Back to Directory
-      </Link>
+    <div className={embedded ? "" : styles.container}>
+      {!embedded && (
+        <Link href="/admin/directory" className={styles.backBtn} style={{ marginBottom: '15px' }}>
+          <span className="material-symbols-outlined">arrow_back</span> Back to Directory
+        </Link>
+      )}
       
-      <div className={styles.header}>
-        <h1 className={styles.title}>Salary & Payroll</h1>
-        <button onClick={generateSlip} className={styles.addBtn}>
-          <span className="material-symbols-outlined">payments</span> Generate Salary Slip
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>Monthly employee salary records, deductions, and payment status.</p>
+        <button onClick={generateSlip} style={{ background: '#4F5DFF', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span> Generate Salary Slip
         </button>
       </div>
 
-      <div className={styles.card}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Employee Name</th>
-              <th>Basic Salary</th>
-              <th>Deductions</th>
-              <th>Net Salary</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <TableSkeleton cols={7} />
-            ) : salaries.length > 0 ? (
-              salaries.map(s => (
-                <tr key={s.id}>
-                  <td>{s.month}</td>
-                  <td>{s.employees?.name || s.employee_iqama}</td>
-                  <td>${s.basic_salary}</td>
-                  <td style={{ color: 'red' }}>-${s.deductions}</td>
-                  <td style={{ fontWeight: 'bold' }}>${s.net_salary}</td>
-                  <td style={{ color: s.status === 'Paid' ? 'green' : 'orange' }}>{s.status}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                      <Link href={`/admin/directory/salary/slip/${s.id}`} style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span> View
-                      </Link>
-                      <Link href={`/admin/directory/salary/${s.id}`} style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '30px' }}>No salary records found.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <thead>
+          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Month</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Employee Name</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Basic Salary</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Deductions</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Net Salary</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Status</th>
+            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Loading Salary Records...</td></tr>
+          ) : salaries.length > 0 ? (
+            salaries.map(s => (
+              <tr key={s.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '12px 16px' }}><strong>{s.month}</strong></td>
+                <td style={{ padding: '12px 16px' }}>
+                  <strong>{s.employees?.name || 'Unknown'}</strong><br/>
+                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{s.employee_iqama}</span>
+                </td>
+                <td style={{ padding: '12px 16px' }}>${Number(s.basic_salary || 0).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px', color: Number(s.deductions || 0) > 0 ? '#ef4444' : '#64748b' }}>
+                  {Number(s.deductions || 0) > 0 ? `-$${Number(s.deductions).toLocaleString()}` : '$0'}
+                </td>
+                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>${Number(s.net_salary || 0).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px' }}>
+                  <span style={{ 
+                    padding: '4px 8px', 
+                    borderRadius: '12px', 
+                    background: s.status === 'Paid' ? '#dcfce7' : '#fef08a', 
+                    color: s.status === 'Paid' ? '#166534' : '#854d0e',
+                    fontSize: '0.8rem',
+                    fontWeight: 600
+                  }}>
+                    {s.status || 'Pending'}
+                  </span>
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <Link href={`/admin/directory/salary/slip/${s.id}`} style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span> View
+                    </Link>
+                    <Link href={`/admin/directory/salary/${s.id}`} style={{ color: '#4F5DFF', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No salary records found.</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

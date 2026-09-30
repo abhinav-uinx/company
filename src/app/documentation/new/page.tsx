@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -24,7 +24,16 @@ export default function NewDocumentationRequest() {
       const { data: s } = await supabaseAuth.from('services').select('id').eq('name', 'General Service').single();
       if (s) {
         const { data: c } = await supabaseAuth.from('customers').select('id, name, contact_number').eq('service', s.id);
-        if (c) setCustomers(c);
+        const { data: existingRecords } = await supabaseAuth.from('general_service_records').select('customer_id');
+        
+        if (c) {
+          if (existingRecords) {
+            const existingIds = new Set(existingRecords.map(r => r.customer_id));
+            setCustomers(c.filter(cust => !existingIds.has(cust.id)));
+          } else {
+            setCustomers(c);
+          }
+        }
       }
       // Get doc service types
       const { data: d } = await supabaseAuth.from('doc_service_types').select('*');

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -70,7 +70,7 @@ export default function EditSalaryPage() {
     if (error) {
       setErrorMsg(error.message);
     } else {
-      router.push('/admin/directory/salary');
+      router.push('/admin/directory?tab=salary');
       router.refresh();
     }
   };
@@ -79,7 +79,7 @@ export default function EditSalaryPage() {
 
   return (
     <div className={styles.container}>
-      <Link href="/admin/directory/salary" className={styles.backBtn}>
+      <Link href="/admin/directory?tab=salary" className={styles.backBtn}>
         <span className="material-symbols-outlined">arrow_back</span> Back to Salary List
       </Link>
       

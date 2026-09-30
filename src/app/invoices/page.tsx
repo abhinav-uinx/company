@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -84,6 +84,9 @@ export default function InvoicesList() {
                         <button onClick={() => { setPaymentModal(inv); setPaymentAmt(inv.balance_amount); }} style={{ color: '#16a34a', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} disabled={inv.status === 'Paid'}>
                           {inv.status === 'Paid' ? 'Fully Paid' : 'Log Payment'}
                         </button>
+                        <Link href={`/invoices/${inv.id}/edit`} className={styles.actionLink} style={{ color: '#f59e0b', textDecoration: 'none' }}>
+                          Edit
+                        </Link>
                         <Link href={`/invoices/${inv.id}`} className={styles.actionLink} style={{ color: '#2563eb', textDecoration: 'none' }}>
                           View PDF
                         </Link>

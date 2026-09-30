@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -11,6 +11,8 @@ export default function AddEscortMission() {
   const [loading, setLoading] = useState(false);
   const [hasLayover, setHasLayover] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
+  const [medifFile, setMedifFile] = useState<File | null>(null);
+  const [passportFile, setPassportFile] = useState<File | null>(null);
   
   const [customers, setCustomers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -30,14 +32,14 @@ export default function AddEscortMission() {
     ticket_cost: 0,
     escort_employee_iqama: '',
     approx_cost: 0,
-    status: 'Pending'
+    status: ''
   });
 
   useEffect(() => {
     async function loadDropdowns() {
       const { data: sData } = await supabaseAuth.from('services').select('id').eq('name', 'Medical Escort').single();
       const [pRes, eRes] = await Promise.all([
-        supabaseAuth.from('customers').select('id, name').eq('service', sData?.id),
+        supabaseAuth.from('customers').select('id, name, passport').eq('service', sData?.id),
         supabaseAuth.from('employees').select('iqama_number, name').eq('status', 'active')
       ]);
       if (pRes.data) setCustomers(pRes.data);
@@ -64,11 +66,30 @@ export default function AddEscortMission() {
       return;
     }
 
-    const { error } = await supabaseAuth.from('escort_missions').insert([cleanData]);
+    const { error, data: missionData } = await supabaseAuth.from('escort_missions').insert([cleanData]).select().single();
 
     if (error) {
       setMsg({ text: 'Error adding mission: ' + error.message, type: 'error' });
     } else {
+      // Upload Medif file if selected
+      if (medifFile && cleanData.customer_id) {
+        const filePath = `${cleanData.customer_id}/medif form/${medifFile.name}`;
+        await supabaseAuth.storage.from('medical_escort').upload(filePath, medifFile, { upsert: true });
+      }
+
+      // Upload Passport if selected
+      if (passportFile && cleanData.customer_id) {
+        const filePath = `${cleanData.customer_id}/passport/${passportFile.name}`;
+        const { data: pData, error: pError } = await supabaseAuth.storage.from('medical_escort').upload(filePath, passportFile, { upsert: true });
+        if (!pError && pData) {
+          const selectedCust = customers.find(c => c.id === cleanData.customer_id);
+          let newPassportArray = selectedCust?.passport || [];
+          if (!Array.isArray(newPassportArray)) newPassportArray = [];
+          newPassportArray.push({ name: passportFile.name, path: filePath });
+          await supabaseAuth.from('customers').update({ passport: newPassportArray }).eq('id', cleanData.customer_id);
+        }
+      }
+
       setMsg({ text: 'Mission assigned successfully!', type: 'success' });
       setTimeout(() => {
         router.refresh();
@@ -164,6 +185,39 @@ export default function AddEscortMission() {
             <label>Ticket Cost ($)</label>
             <input type="number" step="0.01" name="ticket_cost" value={formData.ticket_cost} onChange={handleChange} />
           </div>
+
+          <div className={styles.formSection}>Documents</div>
+
+          <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+            <label>MEDIF Form Upload (Optional)</label>
+            <input type="file" accept=".pdf,image/*" onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                setMedifFile(e.target.files[0]);
+              }
+            }} />
+          </div>
+
+          {formData.customer_id && (() => {
+            const cust = customers.find(c => c.id === formData.customer_id);
+            let passportArr = cust?.passport;
+            if (typeof passportArr === 'string') {
+              try { passportArr = JSON.parse(passportArr); } catch(e) {}
+            }
+            const hasPassport = passportArr && Array.isArray(passportArr) && passportArr.length > 0;
+            if (!hasPassport) {
+              return (
+                <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                  <label>Passport Upload (Missing for this customer)</label>
+                  <input type="file" accept=".pdf,image/*" onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setPassportFile(e.target.files[0]);
+                    }
+                  }} />
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <div className={styles.formSection}>Address Details</div>
 

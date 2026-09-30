@@ -1,76 +1,17 @@
-﻿'use client';
-import { useEffect, useState } from 'react';
+'use client';
 import { useRouter } from 'next/navigation';
-import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
-import { getSession, logout } from '@/app/actions/auth';
+import { useAuth } from '@/components/AuthGuard';
+import Header from './header';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [userName, setUserName] = useState('Loading...');
-  const [userRole, setUserRole] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  
-  useEffect(() => {
-    const init = async () => {
-      const session = await getSession();
-      if (!session) { router.replace('/login'); return; }
-      const role = session.role as string;
-      const loggedInUser = session.username as string;
-      setUserRole(role);
-      const table = role === 'admin' ? 'admins' : 'employees';
-      const idField = role === 'admin' ? 'username' : 'iqama_number';
-      const { data } = await supabaseAuth.from(table).select('*').eq(idField, loggedInUser).single();
-      if (data) setUserName(data.name || data.username || loggedInUser);
-    };
-    init();
-  }, [router]);
-
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
+  const { role } = useAuth();
+  const userRole = role || 'admin';
 
   return (
     <>
-      <header className="site-header">
-        <div className="header-inner">
-          <div className="brand">
-            <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
-            <div className="brand-word">
-              MEDESCORT INTERNATIONAL
-              <span>{userRole === 'admin' ? 'Admin Records Portal' : 'Employee Records Portal'}</span>
-            </div>
-          </div>
-          <nav>
-            <Link className="navlink" href="#services">Services</Link>
-            {userRole === 'admin' && (
-              <Link className="navlink" href="/admin/directory">Directory</Link>
-            )}
-            {userRole === 'admin' && <Link className="navlink" href="/admin/reports">Reports</Link>}
-            {userRole === 'admin' && <Link className="navlink" href="/admin/sessions">Sessions</Link>}
-            <Link className="navlink" href="#">Help</Link>
-          </nav>
-          <div className="user-info" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => setMenuOpen(!menuOpen)}>
-            <span className="user-name" style={{ fontWeight: 600 }}>{userName}</span>
-            <span className="user-avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden' }}>
-              <img src="https://ui-avatars.com/api/?name=User&background=0B1220&color=fff" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="User" />
-            </span>
-            {menuOpen && (
-              <div style={{ display: 'block', position: 'absolute', right: 0, top: '45px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', width: '180px', zIndex: 9999, padding: '10px' }}>
-                <button style={{ width: '100%', textAlign: 'left', padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit Profile
-                </button>
-                <div style={{ height: '1px', background: '#e2e8f0', margin: '5px 0' }}></div>
-                <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span> Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <section className="services" id="services">
         <div className="services-head">
@@ -120,15 +61,14 @@ export default function Dashboard() {
           </div>
 
           {userRole === 'admin' && (
-<div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
-            <div className="service-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+            <div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
+              <div className="service-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+              </div>
+              <h3>Reports &amp; Excel Export</h3>
+              <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
             </div>
-            <h3>Reports &amp; Excel Export</h3>
-            <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
-          </div>
-)}
-
+          )}
 
           {userRole === 'admin' && (
             <div className="service-card admin-only" onClick={() => router.push('#')} style={{ cursor: 'pointer' }}>
@@ -150,17 +90,16 @@ export default function Dashboard() {
           </div>
 
           {userRole === 'admin' && (
-            <div className="service-card admin-only" onClick={() => router.push('/admin/directory')} style={{ cursor: 'pointer' }}>
+            <div className="service-card admin-only" onClick={() => router.push('/admin/user')} style={{ cursor: 'pointer' }}>
               <span className="admin-tag">Admin only</span>
               <div className="service-icon icon-admin">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               </div>
               <h3>Manage Employee</h3>
-              <Link className="service-open group" href="/admin/directory"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+              <Link className="service-open group" href="/admin/user"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
             </div>
           )}
 
-        
           {userRole === 'admin' && (
             <div className="service-card admin-only" onClick={() => router.push('/admin/sessions')} style={{ cursor: 'pointer' }}>
               <span className="admin-tag">Admin only</span>
@@ -174,7 +113,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-    
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
         <Link href="#services" className="bottom-nav-item">
@@ -193,14 +131,13 @@ export default function Dashboard() {
             <span>Reports</span>
           </Link>
         )}
-        
         {userRole === 'admin' && (
           <Link href="/admin/sessions" className="bottom-nav-item">
             <span className="material-symbols-outlined">security</span>
             <span>Sessions</span>
           </Link>
         )}
-<Link href="#" className="bottom-nav-item">
+        <Link href="#" className="bottom-nav-item">
           <span className="material-symbols-outlined">help</span>
           <span>Help</span>
         </Link>
@@ -208,11 +145,3 @@ export default function Dashboard() {
     </>
   );
 }
-
-
-
-
-
-
-
-

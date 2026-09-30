@@ -1,5 +1,5 @@
 -- =========================================================================
--- MEDESCORT INTERNATIONAL - DATABASE SETUP & TABLE SCHEMA
+-- MEDESCORT INTERNATIONAL - COMPLETE & ACCURATE DATABASE SCHEMA
 -- =========================================================================
 -- Run this in your Supabase SQL Editor to ensure all tables, columns,
 -- foreign keys, and high-performance indexes are created and synced.
