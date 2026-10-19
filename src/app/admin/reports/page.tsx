@@ -6,11 +6,6 @@ import { supabaseAuth } from '@/lib/supabase';
 import Header from '@/app/admin/dashboard/header';
 import styles from '@/app/customers/customers.module.css';
 import ReportsDashboardTool from './excel-export/ReportsDashboard';
-import PreviewModal from './components/PreviewModal';
-import { getCustomerReportData } from './exports/customers/exportCustomerReport';
-import { getRevenueReportData } from './exports/revenue/exportRevenueReport';
-import { getEmployeeReportData } from './exports/employees/exportEmployeeReport';
-import { getServiceProfitReportData } from './exports/services/exportServiceProfitReport';
 
 export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
