@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getActiveSessions, terminateSession, getSession, getCurrentUserLoginInfo } from '@/app/actions/auth';
+import { getActiveSessions, terminateSession, getSession } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingIcon from '@/components/LoadingIcon';
@@ -9,7 +9,6 @@ import LoadingIcon from '@/components/LoadingIcon';
 export default function UserSessionsPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<any[]>([]);
-  const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -25,13 +24,8 @@ export default function UserSessionsPage() {
       }
       setCurrentSessionId(current.session_id as string);
 
-      const [sessData, userDetails] = await Promise.all([
-        getActiveSessions(),
-        getCurrentUserLoginInfo()
-      ]);
-
+      const sessData = await getActiveSessions();
       setSessions(sessData || []);
-      setUserInfo(userDetails);
       setLoading(false);
     };
 
@@ -55,8 +49,6 @@ export default function UserSessionsPage() {
   };
 
   if (loading) return <LoadingIcon />;
-
-  const currentSession = sessions.find(s => s.id === currentSessionId);
 
   return (
     <div style={{ padding: '30px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
@@ -101,9 +93,9 @@ export default function UserSessionsPage() {
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '26px', color: '#0f172a', fontWeight: 800 }}>Account &amp; Active Sessions</h1>
+          <h1 style={{ margin: 0, fontSize: '26px', color: '#0f172a', fontWeight: 800 }}>Active Sessions</h1>
           <p style={{ color: '#64748b', margin: '4px 0 0 0', fontSize: '14px' }}>
-            View your current login profile and manage all devices with access to your account.
+            Manage your active sessions across different devices and browsers. You can terminate any unrecognized sessions here.
           </p>
         </div>
         <Link
@@ -123,92 +115,6 @@ export default function UserSessionsPage() {
         >
           <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span> Back to Dashboard
         </Link>
-      </div>
-
-      {/* Login Info Card */}
-      <div style={{
-        background: 'linear-gradient(135deg, #0B1220 0%, #1E293B 100%)',
-        color: '#fff',
-        borderRadius: '16px',
-        padding: '24px 28px',
-        marginBottom: '32px',
-        boxShadow: '0 10px 25px -5px rgba(11, 18, 32, 0.3)',
-        border: '1px solid #334155'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap', marginBottom: '20px' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #4F5DFF 0%, #6366F1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            fontWeight: 800,
-            color: '#fff',
-            boxShadow: '0 4px 12px rgba(79, 93, 255, 0.35)',
-            flexShrink: 0
-          }}>
-            {userInfo?.photo_url ? (
-              <img src={userInfo.photo_url} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-            ) : (
-              (userInfo?.name || 'U').charAt(0).toUpperCase()
-            )}
-          </div>
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#fff' }}>
-                {userInfo?.name || 'Employee'}
-              </h2>
-              <span style={{
-                background: 'rgba(79, 93, 255, 0.25)',
-                color: '#A5B4FC',
-                border: '1px solid rgba(165, 180, 252, 0.3)',
-                padding: '3px 10px',
-                borderRadius: '999px',
-                fontSize: '12px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em'
-              }}>
-                {userInfo?.role === 'admin' ? 'Administrator' : 'Employee Portal'}
-              </span>
-            </div>
-            <p style={{ margin: '4px 0 0 0', color: '#94A3B8', fontSize: '13px' }}>
-              Iqama / Username: <strong style={{ color: '#E2E8F0' }}>{userInfo?.username}</strong>
-              {userInfo?.job_title ? ` · ${userInfo.job_title}` : ''}
-              {userInfo?.department ? ` (${userInfo.department})` : ''}
-            </p>
-          </div>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '16px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          padding: '16px',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.08)'
-        }}>
-          <div>
-            <span style={{ color: '#94A3B8', fontSize: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</span>
-            <span style={{ color: '#F1F5F9', fontSize: '14px', fontWeight: 600 }}>{userInfo?.email || 'Not Provided'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#94A3B8', fontSize: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</span>
-            <span style={{ color: '#F1F5F9', fontSize: '14px', fontWeight: 600 }}>{userInfo?.phone_number || 'Not Provided'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#94A3B8', fontSize: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current IP Address</span>
-            <span style={{ color: '#F1F5F9', fontSize: '14px', fontWeight: 600 }}>{currentSession?.ip_address || '127.0.0.1'}</span>
-          </div>
-          <div>
-            <span style={{ color: '#94A3B8', fontSize: '12px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Location</span>
-            <span style={{ color: '#F1F5F9', fontSize: '14px', fontWeight: 600 }}>{currentSession?.location || 'Local Network'}</span>
-          </div>
-        </div>
       </div>
 
       {/* Active Sessions List Header */}

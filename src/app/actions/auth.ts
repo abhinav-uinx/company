@@ -361,27 +361,34 @@ export async function checkAuthStatus(loggedInUser: string, role: string) {
   }
 }
 
-export async function getCurrentUserPermissions(): Promise<{
+export async function getAuthAndPermissions(): Promise<{
+  username: string;
   role: string;
+  name: string;
   status: string;
   permissions: string[];
-  allowedFolders: string[];
-}> {
+} | null> {
   const session = await getSession();
-  if (!session) {
-    return { role: '', status: '', permissions: [], allowedFolders: [] };
-  }
+  if (!session) return null;
 
   const role = (session.role as string) || '';
   const username = (session.username as string) || '';
+  const name = (session.name as string) || username;
 
+  // Ultra-fast admin path: 0 DB queries, instant response
   if (role === 'admin') {
     const allFolders = ['customers', 'escorts', 'general_services', 'documentation', 'invoices', 'vault', 'reports', 'forms', 'salary'];
-    return { role: 'admin', status: 'active', permissions: allFolders, allowedFolders: allFolders };
+    return {
+      username,
+      role: 'admin',
+      name,
+      status: 'active',
+      permissions: allFolders,
+    };
   }
 
   try {
-    // 1. Check employee account status from employees table
+    // Single query for employee status and permissions
     const { data: emp } = await supabaseAdmin
       .from('employees')
       .select('id, status, permissions')
@@ -390,10 +397,15 @@ export async function getCurrentUserPermissions(): Promise<{
 
     const empStatus = emp?.status || 'active';
     if (empStatus === 'disabled') {
-      return { role: 'employee', status: 'disabled', permissions: [], allowedFolders: [] };
+      return {
+        username,
+        role: 'employee',
+        name,
+        status: 'disabled',
+        permissions: [],
+      };
     }
 
-    // 2. Check employee_folder_permissions table
     const { data: dbPerms } = await supabaseAdmin
       .from('employee_folder_permissions')
       .select('*')
@@ -403,7 +415,6 @@ export async function getCurrentUserPermissions(): Promise<{
 
     if (dbPerms && dbPerms.length > 0) {
       const row = dbPerms[0];
-      // Check if horizontal schema row (one row per employee with folder columns)
       if (row.customers !== undefined || row.escorts !== undefined) {
         const folderCols = ['customers', 'escorts', 'general_services', 'invoices', 'vault', 'reports', 'forms'];
         folderCols.forEach(col => {
@@ -413,7 +424,6 @@ export async function getCurrentUserPermissions(): Promise<{
           }
         });
       } else {
-        // Fallback for vertical schema
         allowed = dbPerms
           .filter(p => p.is_enabled && p.permission_level !== 'disabled' && p.folder_id)
           .map(p => p.folder_id);
@@ -439,15 +449,40 @@ export async function getCurrentUserPermissions(): Promise<{
     }
 
     return {
+      username,
       role: 'employee',
+      name,
       status: empStatus,
       permissions: allowed,
-      allowedFolders: allowed
     };
   } catch (err) {
-    console.error('Error in getCurrentUserPermissions:', err);
-    return { role: 'employee', status: 'active', permissions: [], allowedFolders: [] };
+    console.error('Error in getAuthAndPermissions:', err);
+    return {
+      username,
+      role: 'employee',
+      name,
+      status: 'active',
+      permissions: [],
+    };
   }
+}
+
+export async function getCurrentUserPermissions(): Promise<{
+  role: string;
+  status: string;
+  permissions: string[];
+  allowedFolders: string[];
+}> {
+  const auth = await getAuthAndPermissions();
+  if (!auth) {
+    return { role: '', status: '', permissions: [], allowedFolders: [] };
+  }
+  return {
+    role: auth.role,
+    status: auth.status,
+    permissions: auth.permissions,
+    allowedFolders: auth.permissions,
+  };
 }
 
 export async function updatePassword(identifier: string, oldPass: string, newPass: string) {

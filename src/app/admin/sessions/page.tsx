@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getActiveSessions, terminateSession, getSession, getCurrentUserLoginInfo } from '@/app/actions/auth';
+import { getActiveSessions, terminateSession, getSession } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingIcon from '@/components/LoadingIcon';
@@ -8,7 +8,6 @@ import LoadingIcon from '@/components/LoadingIcon';
 export default function SessionsPage() {
     const router = useRouter();
     const [sessions, setSessions] = useState<any[]>([]);
-    const [userInfo, setUserInfo] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -24,12 +23,8 @@ export default function SessionsPage() {
                 return;
             }
             setCurrentSessionId(current.session_id as string);
-            const [data, userDetails] = await Promise.all([
-                getActiveSessions(),
-                getCurrentUserLoginInfo()
-            ]);
+            const data = await getActiveSessions();
             setSessions(data);
-            setUserInfo(userDetails);
             setLoading(false);
         };
         fetchSessions();
@@ -80,95 +75,15 @@ export default function SessionsPage() {
       )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1 style={{ margin: 0, fontSize: '24px', color: '#0f172a' }}>Active Sessions &amp; Security</h1>
+                <h1 style={{ margin: 0, fontSize: '24px', color: '#0f172a' }}>Active Sessions</h1>
                 <Link href="/admin/dashboard" style={{ color: '#4F5DFF', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EEF1FF', padding: '8px 16px', borderRadius: '8px', fontSize: '14px' }}>
                     &larr; Back to Dashboard
                 </Link>
             </div>
             
-            <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '14px' }}>
+            <p style={{ color: '#64748b', marginBottom: '30px' }}>
                 Manage your active sessions across different devices and browsers. You can terminate any unrecognized sessions here.
             </p>
-
-            {/* Login & Account Info Card */}
-            <div style={{
-                background: 'linear-gradient(135deg, #0B1220 0%, #1E293B 100%)',
-                color: '#fff',
-                borderRadius: '16px',
-                padding: '24px 28px',
-                marginBottom: '28px',
-                boxShadow: '0 10px 25px -5px rgba(11, 18, 32, 0.3)',
-                border: '1px solid #334155'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '18px' }}>
-                    <div style={{
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #4F5DFF 0%, #6366F1 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '22px',
-                        fontWeight: 800,
-                        color: '#fff',
-                        boxShadow: '0 4px 12px rgba(79, 93, 255, 0.35)',
-                        flexShrink: 0
-                    }}>
-                        {userInfo?.photo_url ? (
-                            <img src={userInfo.photo_url} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                        ) : (
-                            (userInfo?.name || 'A').charAt(0).toUpperCase()
-                        )}
-                    </div>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#fff' }}>
-                                {userInfo?.name || 'Administrator'}
-                            </h2>
-                            <span style={{
-                                background: 'rgba(79, 93, 255, 0.25)',
-                                color: '#A5B4FC',
-                                border: '1px solid rgba(165, 180, 252, 0.3)',
-                                padding: '2px 8px',
-                                borderRadius: '999px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase'
-                            }}>
-                                Administrator
-                            </span>
-                        </div>
-                        <p style={{ margin: '4px 0 0 0', color: '#94A3B8', fontSize: '13px' }}>
-                            Username: <strong style={{ color: '#E2E8F0' }}>{userInfo?.username}</strong>
-                            {userInfo?.email ? ` · ${userInfo.email}` : ''}
-                        </p>
-                    </div>
-                </div>
-
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                    gap: '14px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
-                }}>
-                    <div>
-                        <span style={{ color: '#94A3B8', fontSize: '11px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Device IP</span>
-                        <span style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 600 }}>{sessions.find(s => s.id === currentSessionId)?.ip_address || '127.0.0.1'}</span>
-                    </div>
-                    <div>
-                        <span style={{ color: '#94A3B8', fontSize: '11px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Location</span>
-                        <span style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 600 }}>{sessions.find(s => s.id === currentSessionId)?.location || 'Local Network'}</span>
-                    </div>
-                    <div>
-                        <span style={{ color: '#94A3B8', fontSize: '11px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last Login Recorded</span>
-                        <span style={{ color: '#F1F5F9', fontSize: '13px', fontWeight: 600 }}>{userInfo?.last_login ? new Date(userInfo.last_login).toLocaleString() : 'Active Now'}</span>
-                    </div>
-                </div>
-            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {sessions.map(session => (

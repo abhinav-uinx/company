@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, createContext, useContext, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getSession, logout, getCurrentUserPermissions } from '@/app/actions/auth';
+import { getAuthAndPermissions, logout } from '@/app/actions/auth';
 import { supabaseAuth } from '@/lib/supabase';
 import LoadingIcon from '@/components/LoadingIcon';
 
@@ -31,6 +31,16 @@ export const useAuth = () => useContext(AuthContext);
 
 import { subscribeToPermissionsChanges } from '@/lib/permissionsSync';
 
+// In-memory module cache for instant 0ms transitions and deduplicating server action requests
+let globalAuthCache: {
+  username: string;
+  role: string;
+  name: string;
+  status: string;
+  permissions: string[];
+  lastVerified: number;
+} | null = null;
+
 // System routes mapped to their authorization folder keys
 const ROUTE_FOLDER_MAP: { prefix: string; folder: string; label: string }[] = [
   { prefix: '/customers', folder: 'customers', label: 'Customer Management' },
@@ -59,14 +69,14 @@ function checkFolderAllowed(folderKey: string, role: string, status: string, per
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(() => !globalAuthCache);
   const [liveToast, setLiveToast] = useState({ show: false, message: '', type: '' });
   
-  const [username, setUsername] = useState('');
-  const [role, setRole] = useState('');
-  const [name, setName] = useState('');
-  const [status, setStatus] = useState('active');
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [username, setUsername] = useState(() => globalAuthCache?.username || '');
+  const [role, setRole] = useState(() => globalAuthCache?.role || '');
+  const [name, setName] = useState(() => globalAuthCache?.name || '');
+  const [status, setStatus] = useState(() => globalAuthCache?.status || 'active');
+  const [permissions, setPermissions] = useState<string[]>(() => globalAuthCache?.permissions || []);
 
   const showToast = useCallback((message: string, type: string = 'disabled') => {
     setLiveToast({ show: true, message, type });
@@ -75,10 +85,23 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }, 4500);
   }, []);
 
-  const fetchAuthAndPermissions = useCallback(async () => {
+  const fetchAuthAndPermissions = useCallback(async (force: boolean = false) => {
+    const now = Date.now();
+    // Return cached auth immediately if fresh (< 45s) and not forced
+    if (!force && globalAuthCache && (now - globalAuthCache.lastVerified < 45000)) {
+      setUsername(globalAuthCache.username);
+      setRole(globalAuthCache.role);
+      setName(globalAuthCache.name);
+      setStatus(globalAuthCache.status);
+      setPermissions(globalAuthCache.permissions);
+      return globalAuthCache;
+    }
+
     try {
-      const session = await getSession();
-      if (!session) {
+      // Single unified server action call
+      const auth = await getAuthAndPermissions();
+      if (!auth) {
+        globalAuthCache = null;
         setUsername('');
         setRole('');
         setName('');
@@ -87,63 +110,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         return null;
       }
 
-      const uName = (session.username as string) || '';
-      const uRole = (session.role as string) || '';
-      const dName = (session.name as string) || uName;
-
-      setUsername(uName);
-      setRole(uRole);
-      setName(dName);
-
-      // Fetch verified permissions from server action
-      const permRes = await getCurrentUserPermissions();
-      let currentPerms = permRes?.permissions || [];
-      let currentStatus = permRes?.status || 'active';
-
-      // Fast direct query on client for immediate cache refresh
-      if (uRole === 'employee' && uName) {
-        try {
-          const { data: folderPermRows } = await supabaseAuth
-            .from('employee_folder_permissions')
-            .select('*')
-            .eq('employee_iqama', uName);
-
-          if (folderPermRows && folderPermRows.length > 0) {
-            const row = folderPermRows[0];
-            const directAllowed: string[] = [];
-            const folderCols = ['customers', 'escorts', 'general_services', 'invoices', 'vault', 'reports', 'forms'];
-            folderCols.forEach(col => {
-              const val = row[col];
-              if (val && val !== 'disabled') {
-                directAllowed.push(col);
-              }
-            });
-            if (directAllowed.includes('general_services') && !directAllowed.includes('documentation')) {
-              directAllowed.push('documentation');
-            }
-            if (directAllowed.includes('documentation') && !directAllowed.includes('general_services')) {
-              directAllowed.push('general_services');
-            }
-            if (directAllowed.length > 0) {
-              currentPerms = directAllowed;
-            }
-          }
-        } catch (e) {}
-      }
-
-      setStatus(currentStatus);
-      setPermissions(currentPerms);
-
-      return {
-        username: uName,
-        role: uRole,
-        name: dName,
-        status: currentStatus,
-        permissions: currentPerms
+      globalAuthCache = {
+        username: auth.username,
+        role: auth.role,
+        name: auth.name,
+        status: auth.status,
+        permissions: auth.permissions,
+        lastVerified: Date.now(),
       };
+
+      setUsername(auth.username);
+      setRole(auth.role);
+      setName(auth.name);
+      setStatus(auth.status);
+      setPermissions(auth.permissions);
+
+      return auth;
     } catch (err) {
       console.error('Error fetching auth & permissions:', err);
-      return null;
+      return globalAuthCache;
     }
   }, []);
 
@@ -152,6 +137,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const runAuthCheck = async () => {
       const isPublicRoute = pathname === '/login';
+
+      // Fast check: if we already have valid auth in memory, don't show loading spinner
+      if (globalAuthCache && Date.now() - globalAuthCache.lastVerified < 45000) {
+        setIsChecking(false);
+      }
+
       const auth = await fetchAuthAndPermissions();
 
       if (isCancelled) return;
@@ -221,27 +212,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router, fetchAuthAndPermissions, showToast]);
 
-  // Real-time synchronization without refreshing (Unified Multi-Tier Sync + 2.5s Heartbeat)
+  // Real-time synchronization: EVENT-DRIVEN via Supabase Realtime broadcast & cross-tab events
+  // Completely eliminates constant interval polling on dashboards
   useEffect(() => {
-    if (!username) return;
+    if (!username || role === 'admin') return;
 
-    // Listen to Supabase Realtime broadcast, BroadcastChannel, localStorage, and focus events
+    // Listen to Supabase Realtime broadcast, BroadcastChannel, and localStorage events
     const unsubscribe = subscribeToPermissionsChanges((targetIqama) => {
       if (!targetIqama || targetIqama === 'all' || targetIqama === username) {
-        fetchAuthAndPermissions();
+        fetchAuthAndPermissions(true);
       }
     });
 
-    // Silent 2.5s heartbeat to guarantee zero-refresh consistency
-    const heartbeatTimer = setInterval(() => {
-      fetchAuthAndPermissions();
-    }, 2500);
-
     return () => {
       unsubscribe();
-      clearInterval(heartbeatTimer);
     };
-  }, [username, fetchAuthAndPermissions]);
+  }, [username, role, fetchAuthAndPermissions]);
 
   // Instantly evict user from any restricted route if their permission is revoked while viewing
   useEffect(() => {
@@ -262,6 +248,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [role, status, permissions]);
 
   const handleLogout = async () => {
+    globalAuthCache = null;
     await logout();
     router.replace('/login');
   };

@@ -114,9 +114,16 @@ export function subscribeToPermissionsChanges(onChanged: (iqama?: string) => voi
     cleanupFns.push(() => window.removeEventListener('medescort_perms_updated', onCustom));
   }
 
-  // 5. Window focus & document visibility
+  // 5. Window focus & document visibility (throttled to at most once per 60s)
   if (typeof window !== 'undefined') {
-    const onFocus = () => onChanged();
+    let lastFocusCheck = Date.now();
+    const onFocus = () => {
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && now - lastFocusCheck > 60000) {
+        lastFocusCheck = now;
+        onChanged();
+      }
+    };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     cleanupFns.push(() => {
