@@ -8,7 +8,6 @@ import LoadingIcon from '@/components/LoadingIcon';
 
 export default function Vault() {
   const { role, isFolderAllowed } = useAuth();
-  const [activeTab, setActiveTab] = useState<'customers' | 'medif' | 'other'>('customers');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -18,7 +17,6 @@ export default function Vault() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
-  const [medifRecords, setMedifRecords] = useState<any[]>([]);
 
   // Filtering & Search
   const [search, setSearch] = useState('');
@@ -31,25 +29,17 @@ export default function Vault() {
   const [loadingPassports, setLoadingPassports] = useState(false);
   const [fullscreenFile, setFullscreenFile] = useState<any | null>(null);
 
-  // Existing MEDIF Tab States (preserves all existing MEDIF actions & deletion)
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [deleteIds, setDeleteIds] = useState<string[]>([]);
-
   // Fetch Vault Data
   const fetchAllVaultData = async () => {
     setLoading(true);
     setError('');
     try {
-      const [cRes, sRes, invRes, payRes, mRes, medifRes] = await Promise.all([
+      const [cRes, sRes, invRes, payRes, mRes] = await Promise.all([
         supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
         supabaseAuth.from('services').select('*'),
         supabaseAuth.from('invoices').select('*').order('created_at', { ascending: false }),
         supabaseAuth.from('payment_history').select('*').order('payment_date', { ascending: false }),
-        supabaseAuth.from('escort_missions').select('*'),
-        supabaseAuth.from('medif_records').select('*').order('created_at', { ascending: false })
+        supabaseAuth.from('escort_missions').select('*')
       ]);
 
       if (cRes.error) throw cRes.error;
@@ -57,7 +47,6 @@ export default function Vault() {
       if (invRes.data) setInvoices(invRes.data);
       if (payRes.data) setPayments(payRes.data);
       if (mRes.data) setMissions(mRes.data);
-      if (medifRes.data) setMedifRecords(medifRes.data);
       if (cRes.data) setCustomers(cRes.data);
     } catch (err: any) {
       console.error('Vault data fetch error:', err);
@@ -71,7 +60,7 @@ export default function Vault() {
     fetchAllVaultData();
   }, []);
 
-  // Process Customers with Invoices, Payments, Missions, and MEDIFs
+  // Process Customers with Invoices, Payments, and Missions
   const processedCustomers = useMemo(() => {
     return customers.map(cust => {
       const serviceObj = services.find(s => s.id === cust.service);
@@ -110,13 +99,6 @@ export default function Vault() {
       // Customer Escort Mission(s)
       const custMissions = missions.filter(m => m.customer_id === cust.id);
 
-      // Customer MEDIF Records (matched by passport or passenger name)
-      const custMedifs = medifRecords.filter(m => {
-        const passMatch = cust.passport_no && m.passport && (m.passport.toLowerCase() === cust.passport_no.toLowerCase());
-        const nameMatch = cust.name && m.patient_name && (m.patient_name.toLowerCase().includes(cust.name.toLowerCase()) || cust.name.toLowerCase().includes(m.patient_name.toLowerCase()));
-        return passMatch || nameMatch;
-      });
-
       return {
         ...cust,
         serviceName,
@@ -126,11 +108,10 @@ export default function Vault() {
         totalAdvance,
         totalBalance,
         paymentStatus,
-        custMissions,
-        custMedifs
+        custMissions
       };
     });
-  }, [customers, services, invoices, payments, missions, medifRecords]);
+  }, [customers, services, invoices, payments, missions]);
 
   // Filtered Customer List
   const filteredCustomers = useMemo(() => {
@@ -187,32 +168,6 @@ export default function Vault() {
     }
   };
 
-  // MEDIF Delete Handlers
-  const handleDeleteMedif = async () => {
-    if (selectedIds.length === 0) return;
-    setDeleteIds(selectedIds);
-    setShowConfirmModal(true);
-  };
-
-  const confirmDeleteMedif = async () => {
-    setShowConfirmModal(false);
-    setLoading(true);
-    const { error: delErr } = await supabaseAuth.from('medif_records').delete().in('id', deleteIds);
-    if (delErr) {
-      alert('Delete failed: ' + delErr.message);
-    } else {
-      setMedifRecords(prev => prev.filter(m => !deleteIds.includes(m.id)));
-      setSelectedIds([]);
-      setIsDeleteMode(false);
-    }
-    setLoading(false);
-  };
-
-  const toggleMedifSelection = (e: any, id: string) => {
-    e.preventDefault();
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
   // Employee Protection
   if (role === 'employee' && !isFolderAllowed('vault')) {
     return (
@@ -232,12 +187,6 @@ export default function Vault() {
     );
   }
 
-  // Summary Counters
-  const totalVaultCustomers = processedCustomers.length;
-  const totalBilled = processedCustomers.reduce((acc, c) => acc + c.totalAmount, 0);
-  const totalCollected = processedCustomers.reduce((acc, c) => acc + c.totalAdvance, 0);
-  const totalOutstanding = processedCustomers.reduce((acc, c) => acc + c.totalBalance, 0);
-
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
@@ -245,20 +194,6 @@ export default function Vault() {
         .vault-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .back-link { display: inline-flex; align-items: center; gap: 6px; color: #4F5DFF; background: #EEF1FF; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
         .back-link:hover { background: #e0e7ff; }
-        
-        /* Stats row */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
-        .stat-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 14px; }
-        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justifyContent: center; }
-        .stat-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
-        .stat-val { font-size: 20px; font-weight: 800; color: #0f172a; }
-
-        /* Tabs Navigation */
-        .tabs-header { display: flex; gap: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px; }
-        .tab-btn { background: none; border: none; padding: 12px 18px; font-size: 15px; font-weight: 700; color: #64748b; cursor: pointer; position: relative; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
-        .tab-btn:hover { color: #0f172a; }
-        .tab-btn.active { color: #4F5DFF; }
-        .tab-btn.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #4F5DFF; border-radius: 3px 3px 0 0; }
 
         /* Search & Filters */
         .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -321,352 +256,187 @@ export default function Vault() {
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span> Back to Dashboard
             </Link>
             <h1 style={{ margin: '14px 0 4px 0', fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-              Document Vault &amp; Customer Dossiers
+              Document Vault
             </h1>
             <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-              Complete centralized records of entered customers, payments, travel IDs, MEDIFs, and vaulted documents.
+              Centralized customer dossiers, payment records, travel credentials, and vaulted documents.
             </p>
           </div>
         </div>
 
-        {/* Top Financial & Customer Counters */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#EEF1FF', color: '#4F5DFF' }}>
-              <span className="material-symbols-outlined">folder_shared</span>
-            </div>
-            <div>
-              <div className="stat-label">Total Customers</div>
-              <div className="stat-val">{totalVaultCustomers}</div>
-            </div>
+        {/* Filter Bar */}
+        <div className="filter-bar">
+          <div className="search-box">
+            <span className="material-symbols-outlined search-icon">search</span>
+            <input
+              type="text"
+              placeholder="Search by Name, Iqama, Passport No, Nationality, Phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#ecfdf5', color: '#10b981' }}>
-              <span className="material-symbols-outlined">payments</span>
-            </div>
-            <div>
-              <div className="stat-label">Total Invoiced</div>
-              <div className="stat-val">${totalBilled.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-              <span className="material-symbols-outlined">account_balance_wallet</span>
-            </div>
-            <div>
-              <div className="stat-label">Advance Collected</div>
-              <div className="stat-val">${totalCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: totalOutstanding > 0 ? '#fef2f2' : '#f8fafc', color: totalOutstanding > 0 ? '#ef4444' : '#64748b' }}>
-              <span className="material-symbols-outlined">receipt_long</span>
-            </div>
-            <div>
-              <div className="stat-label">Outstanding Balance</div>
-              <div className="stat-val" style={{ color: totalOutstanding > 0 ? '#ef4444' : '#0f172a' }}>
-                ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <select
+              className="select-filter"
+              value={serviceFilter}
+              onChange={(e) => setServiceFilter(e.target.value)}
+            >
+              <option value="all">All Services</option>
+              <option value="escort">Medical Escort</option>
+              <option value="general">General Service</option>
+            </select>
+
+            <select
+              className="select-filter"
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+            >
+              <option value="all">All Payment Statuses</option>
+              <option value="Paid">Paid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Unpaid">Unpaid</option>
+              <option value="No Invoice">No Invoice</option>
+            </select>
           </div>
         </div>
 
-        {/* Tab Headers */}
-        <div className="tabs-header">
-          <button
-            className={`tab-btn ${activeTab === 'customers' ? 'active' : ''}`}
-            onClick={() => setActiveTab('customers')}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>group</span>
-            Customer Vault Records ({filteredCustomers.length})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'medif' ? 'active' : ''}`}
-            onClick={() => setActiveTab('medif')}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>clinical_notes</span>
-            MEDIF Forms ({medifRecords.length})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'other' ? 'active' : ''}`}
-            onClick={() => setActiveTab('other')}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>description</span>
-            Other Forms
-          </button>
-        </div>
+        {/* Error Message */}
+        {error && (
+          <div style={{ padding: '14px 18px', background: '#fee2e2', color: '#b91c1c', borderRadius: '10px', marginBottom: '16px', fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
 
-        {/* TAB 1: CUSTOMERS VAULT TABLE (PRIMARY VIEW) */}
-        {activeTab === 'customers' && (
-          <div>
-            {/* Filter Bar */}
-            <div className="filter-bar">
-              <div className="search-box">
-                <span className="material-symbols-outlined search-icon">search</span>
-                <input
-                  type="text"
-                  placeholder="Search by Name, Iqama, Passport No, Nationality, Phone..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
+        {/* Customers Vault Table */}
+        <div className="table-card">
+          <div className="table-container">
+            <table className="vault-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '22%' }}>Name</th>
+                  <th style={{ width: '15%' }}>Iqama</th>
+                  <th style={{ width: '15%' }}>Passport No</th>
+                  <th style={{ width: '14%' }}>Service</th>
+                  <th style={{ width: '16%' }}>Payment Info</th>
+                  <th style={{ width: '10%' }}>Contact</th>
+                  <th style={{ width: '8%', textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '60px' }}>
+                      <LoadingIcon />
+                    </td>
+                  </tr>
+                ) : filteredCustomers.length > 0 ? (
+                  filteredCustomers.map(customer => {
+                    let payBadgeClass = 'badge-noinv';
+                    if (customer.paymentStatus === 'Paid') payBadgeClass = 'badge-paid';
+                    else if (customer.paymentStatus === 'Partially Paid') payBadgeClass = 'badge-partial';
+                    else if (customer.paymentStatus === 'Unpaid') payBadgeClass = 'badge-unpaid';
 
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <select
-                  className="select-filter"
-                  value={serviceFilter}
-                  onChange={(e) => setServiceFilter(e.target.value)}
-                >
-                  <option value="all">All Services</option>
-                  <option value="escort">Medical Escort</option>
-                  <option value="general">General Service</option>
-                </select>
-
-                <select
-                  className="select-filter"
-                  value={paymentFilter}
-                  onChange={(e) => setPaymentFilter(e.target.value)}
-                >
-                  <option value="all">All Payment Statuses</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Partially Paid">Partially Paid</option>
-                  <option value="Unpaid">Unpaid</option>
-                  <option value="No Invoice">No Invoice</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div style={{ padding: '14px 18px', background: '#fee2e2', color: '#b91c1c', borderRadius: '10px', marginBottom: '16px', fontWeight: 600 }}>
-                {error}
-              </div>
-            )}
-
-            {/* Customers Table */}
-            <div className="table-card">
-              <div className="table-container">
-                <table className="vault-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '22%' }}>Name</th>
-                      <th style={{ width: '15%' }}>Iqama</th>
-                      <th style={{ width: '15%' }}>Passport No</th>
-                      <th style={{ width: '14%' }}>Service</th>
-                      <th style={{ width: '16%' }}>Payment Info</th>
-                      <th style={{ width: '10%' }}>Contact</th>
-                      <th style={{ width: '8%', textAlign: 'center' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '60px' }}>
-                          <LoadingIcon />
+                    return (
+                      <tr key={customer.id}>
+                        {/* 1. Name */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '36px', height: '36px', borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #4F5DFF 0%, #6366F1 100%)',
+                              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 700, fontSize: '14px', flexShrink: 0
+                            }}>
+                              {(customer.name || 'C').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#0f172a' }}>{customer.name || 'Unnamed'}</div>
+                              <div style={{ fontSize: '12px', color: '#64748b' }}>{customer.nationality || 'Nationality Unspecified'}</div>
+                            </div>
+                          </div>
                         </td>
-                      </tr>
-                    ) : filteredCustomers.length > 0 ? (
-                      filteredCustomers.map(customer => {
-                        let payBadgeClass = 'badge-noinv';
-                        if (customer.paymentStatus === 'Paid') payBadgeClass = 'badge-paid';
-                        else if (customer.paymentStatus === 'Partially Paid') payBadgeClass = 'badge-partial';
-                        else if (customer.paymentStatus === 'Unpaid') payBadgeClass = 'badge-unpaid';
 
-                        return (
-                          <tr key={customer.id}>
-                            {/* 1. Name */}
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{
-                                  width: '36px', height: '36px', borderRadius: '50%',
-                                  background: 'linear-gradient(135deg, #4F5DFF 0%, #6366F1 100%)',
-                                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontWeight: 700, fontSize: '14px', flexShrink: 0
-                                }}>
-                                  {(customer.name || 'C').charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{customer.name || 'Unnamed'}</div>
-                                  <div style={{ fontSize: '12px', color: '#64748b' }}>{customer.nationality || 'Nationality Unspecified'}</div>
-                                </div>
-                              </div>
-                            </td>
+                        {/* 2. Iqama */}
+                        <td>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>
+                            {customer.iqama_number || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Not Provided</span>}
+                          </span>
+                        </td>
 
-                            {/* 2. Iqama */}
-                            <td>
-                              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e293b', fontSize: '13px' }}>
-                                {customer.iqama_number || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Not Provided</span>}
+                        {/* 3. Passport No */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#64748b' }}>badge</span>
+                            <span style={{ fontWeight: 700, color: '#0f172a', letterSpacing: '0.02em' }}>
+                              {customer.passport_no || <span style={{ color: '#94a3b8', fontWeight: 400 }}>N/A</span>}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 4. Service */}
+                        <td>
+                          <span className="badge badge-service">
+                            {customer.serviceName}
+                          </span>
+                        </td>
+
+                        {/* 5. Payment Info */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className={`badge ${payBadgeClass}`}>
+                                {customer.paymentStatus}
                               </span>
-                            </td>
-
-                            {/* 3. Passport No */}
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#64748b' }}>badge</span>
-                                <span style={{ fontWeight: 700, color: '#0f172a', letterSpacing: '0.02em' }}>
-                                  {customer.passport_no || <span style={{ color: '#94a3b8', fontWeight: 400 }}>N/A</span>}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* 4. Service */}
-                            <td>
-                              <span className="badge badge-service">
-                                {customer.serviceName}
-                              </span>
-                            </td>
-
-                            {/* 5. Payment Info */}
-                            <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span className={`badge ${payBadgeClass}`}>
-                                    {customer.paymentStatus}
-                                  </span>
-                                </div>
-                                {customer.totalAmount > 0 && (
-                                  <div style={{ fontSize: '12px', color: '#475569' }}>
-                                    <strong>${customer.totalAmount.toLocaleString()}</strong>
-                                    {customer.totalBalance > 0 ? (
-                                      <span style={{ color: '#ef4444', marginLeft: '4px' }}>(Bal: ${customer.totalBalance.toLocaleString()})</span>
-                                    ) : (
-                                      <span style={{ color: '#16a34a', marginLeft: '4px' }}>(Settled)</span>
-                                    )}
-                                  </div>
+                            </div>
+                            {customer.totalAmount > 0 && (
+                              <div style={{ fontSize: '12px', color: '#475569' }}>
+                                <strong>${customer.totalAmount.toLocaleString()}</strong>
+                                {customer.totalBalance > 0 ? (
+                                  <span style={{ color: '#ef4444', marginLeft: '4px' }}>(Bal: ${customer.totalBalance.toLocaleString()})</span>
+                                ) : (
+                                  <span style={{ color: '#16a34a', marginLeft: '4px' }}>(Settled)</span>
                                 )}
                               </div>
-                            </td>
+                            )}
+                          </div>
+                        </td>
 
-                            {/* 6. Contact */}
-                            <td>
-                              <div style={{ fontSize: '13px', color: '#334155' }}>
-                                {customer.contact_number || <span style={{ color: '#94a3b8' }}>N/A</span>}
-                              </div>
-                            </td>
+                        {/* 6. Contact */}
+                        <td>
+                          <div style={{ fontSize: '13px', color: '#334155' }}>
+                            {customer.contact_number || <span style={{ color: '#94a3b8' }}>N/A</span>}
+                          </div>
+                        </td>
 
-                            {/* 7. Action: View Details */}
-                            <td style={{ textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                className="view-action-btn"
-                                onClick={() => handleOpenCustomer(customer)}
-                                title="View Complete Customer Dossier"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#cbd5e1', marginBottom: '8px' }}>search_off</span>
-                          <h3 style={{ margin: '4px 0', fontSize: '16px', color: '#334155' }}>No customers found in vault</h3>
-                          <p style={{ margin: 0, fontSize: '13px' }}>Try searching with a different name, passport number, or filter.</p>
+                        {/* 7. Action: View Details */}
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="view-action-btn"
+                            onClick={() => handleOpenCustomer(customer)}
+                            title="View Complete Customer Dossier"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
+                            View
+                          </button>
                         </td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: MEDIF FORMS (PRESERVED FUNCTIONALITY) */}
-        {activeTab === 'medif' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setStatusFilter('all')}
-                  style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', background: statusFilter === 'all' ? '#0B1220' : '#fff', color: statusFilter === 'all' ? '#fff' : '#64748b', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  All ({medifRecords.length})
-                </button>
-                <button
-                  onClick={() => setStatusFilter('pending')}
-                  style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', background: statusFilter === 'pending' ? '#0B1220' : '#fff', color: statusFilter === 'pending' ? '#fff' : '#64748b', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Pending
-                </button>
-                <button
-                  onClick={() => setStatusFilter('done')}
-                  style={{ padding: '6px 14px', borderRadius: '20px', border: '1px solid #e2e8f0', background: statusFilter === 'done' ? '#0B1220' : '#fff', color: statusFilter === 'done' ? '#fff' : '#64748b', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Done
-                </button>
-              </div>
-
-              <div>
-                {isDeleteMode ? (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => { setIsDeleteMode(false); setSelectedIds([]); }} style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={handleDeleteMedif} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Delete ({selectedIds.length})</button>
-                  </div>
+                    );
+                  })
                 ) : (
-                  <button onClick={() => setIsDeleteMode(true)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span> Delete Mode
-                  </button>
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#cbd5e1', marginBottom: '8px' }}>search_off</span>
+                      <h3 style={{ margin: '4px 0', fontSize: '16px', color: '#334155' }}>No customers found in vault</h3>
+                      <p style={{ margin: 0, fontSize: '13px' }}>Try searching with a different name, passport number, or filter.</p>
+                    </td>
+                  </tr>
                 )}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
-              {medifRecords
-                .filter(m => statusFilter === 'all' || m.status === statusFilter)
-                .map(medif => {
-                  const pName = medif.patient_name || medif.passenger_name || 'Patient';
-                  return (
-                    <Link
-                      key={medif.id}
-                      href={`/vault/view?id=${medif.id}`}
-                      style={{
-                        background: '#ffffff',
-                        border: selectedIds.includes(medif.id) ? '2px solid #ef4444' : '1px solid #e2e8f0',
-                        borderRadius: '14px',
-                        padding: '18px',
-                        textDecoration: 'none',
-                        color: 'inherit',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                        position: 'relative'
-                      }}
-                      onClick={(e) => {
-                        if (isDeleteMode) toggleMedifSelection(e, medif.id);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                        <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>picture_as_pdf</span>
-                        </div>
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {pName}
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#64748b' }}>Passport: {medif.passport || 'N/A'}</div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                        <span>Status: <strong style={{ color: '#0f172a' }}>{medif.status || 'Active'}</strong></span>
-                        <span>{new Date(medif.created_at || Date.now()).toLocaleDateString()}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-            </div>
+              </tbody>
+            </table>
           </div>
-        )}
-
-        {/* TAB 3: OTHER FORMS */}
-        {activeTab === 'other' && (
-          <div style={{ textAlign: 'center', padding: '80px 20px', background: '#fff', borderRadius: '14px', border: '1px dashed #cbd5e1' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#94a3b8' }}>draft</span>
-            <h3 style={{ margin: '10px 0 6px 0', fontSize: '18px' }}>Other Form Vault</h3>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>Additional institutional and government forms are archived here.</p>
-          </div>
-        )}
+        </div>
       </main>
 
       {/* ======================================================== */}
@@ -969,7 +739,7 @@ export default function Vault() {
               <div className="modal-section">
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>attachment</span>
-                  Vault Files, Passports &amp; Attachments
+                  Vault Files &amp; Passports
                 </div>
 
                 {loadingPassports ? (
@@ -1002,32 +772,6 @@ export default function Vault() {
                 ) : (
                   <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
                     No passport files uploaded in storage for this customer.
-                  </div>
-                )}
-
-                {/* Associated MEDIFs */}
-                {selectedCustomer.custMedifs && selectedCustomer.custMedifs.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
-                      Matched MEDIF Forms ({selectedCustomer.custMedifs.length}):
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      {selectedCustomer.custMedifs.map((m: any) => (
-                        <Link
-                          key={m.id}
-                          href={`/vault/view?id=${m.id}`}
-                          target="_blank"
-                          style={{
-                            background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px',
-                            padding: '8px 12px', color: '#1d4ed8', fontSize: '12px', fontWeight: 600,
-                            display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none'
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>description</span>
-                          MEDIF Record ({m.passport || m.id.substring(0, 6)}) &rarr;
-                        </Link>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
@@ -1080,22 +824,6 @@ export default function Vault() {
             ) : (
               <iframe src={fullscreenFile.url} style={{ width: '100%', height: '100%', border: 'none', background: '#fff', borderRadius: '8px' }} title="PDF Preview" />
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal for MEDIF */}
-      {showConfirmModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#ef4444' }}>Confirm Deletion</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#475569' }}>
-              Are you sure you want to delete {deleteIds.length} MEDIF document(s)?
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setShowConfirmModal(false)} style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={confirmDeleteMedif} style={{ padding: '8px 14px', borderRadius: '6px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
-            </div>
           </div>
         </div>
       )}
