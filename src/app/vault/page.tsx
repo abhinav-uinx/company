@@ -2,11 +2,13 @@
 import { useEffect, useState } from 'react';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
+import { useAuth } from '@/components/AuthGuard';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
 export default function Vault() {
   const router = useRouter();
+  const { role, isFolderAllowed } = useAuth();
   const [activeTab, setActiveTab] = useState('medif');
   const [statusFilter, setStatusFilter] = useState('all');
   const [documents, setDocuments] = useState<any[]>([]);
@@ -138,6 +140,24 @@ export default function Vault() {
   const filteredDocs = statusFilter === 'all' 
     ? documents 
     : documents.filter(d => d.status === statusFilter);
+
+  if (role === 'employee' && !isFolderAllowed('vault')) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', background: '#fff', padding: '40px 30px', borderRadius: '16px', border: '1px solid #fee2e2', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>block</span>
+        </div>
+        <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: '0 0 10px 0' }}>Access Prohibited</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 25px 0', lineHeight: 1.5 }}>
+          Your account does not have permission to access the <strong>Document Vault</strong> folder. Please contact an administrator.
+        </p>
+        <Link href="/user/dashboard" style={{ background: '#4F5DFF', color: '#fff', textDecoration: 'none', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>

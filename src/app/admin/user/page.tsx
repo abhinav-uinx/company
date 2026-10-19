@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthGuard';
 import Link from 'next/link';
+import { notifyPermissionsChanged, subscribeToPermissionsChanges } from '@/lib/permissionsSync';
 
 export default function UserManagementPage(props: any) {
   const embedded = props?.embedded ?? false;
@@ -24,49 +25,115 @@ export default function UserManagementPage(props: any) {
 
   useEffect(() => {
     loadUsers();
+
+    // Unified real-time subscriber (Supabase Realtime, BroadcastChannel, LocalStorage, Focus)
+    const unsubscribe = subscribeToPermissionsChanges(() => {
+      loadUsers();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  const formatDepartment = (deptStr: string) => {
+    if (!deptStr || deptStr === 'N/A') return 'N/A';
+    let formatted = deptStr;
+    formatted = formatted.replace(/d69ccefc-045a-4bb1-8c27-99120e16610b/gi, 'Nurse');
+    formatted = formatted.replace(/Human Resources/gi, 'HR');
+    return formatted.split(',').map(s => s.trim()).filter(Boolean).join(' / ');
+  };
 
   const loadUsers = async () => {
     setLoading(true);
-    const res: any = await supabaseAuth
-      .from('employees')
-      .select('iqama_number, name, email, department, job_title, phone_number, role, status, departments(name), roles(role_name)')
-      .order('name');
-    let data: any = res.data;
-    if (res.error && res.error.message.includes('relationship')) {
-      const basic: any = await supabaseAuth
-        .from('employees')
-        .select('iqama_number, name, email, department, job_title, phone_number, role, status')
-        .order('name');
-      data = basic.data;
+    try {
+      const [empRes, deptRes, rolesRes] = await Promise.all([
+        supabaseAuth.from('employees').select('*').order('name'),
+        supabaseAuth.from('departments').select('*').order('name'),
+        supabaseAuth.from('roles').select('*').order('role_name')
+      ]);
+
+      const depts = deptRes.data || [];
+      const roles = rolesRes.data || [];
+      setRolesList(roles);
+
+      const deptMap: Record<string, string> = {};
+      depts.forEach((d: any) => { deptMap[d.id] = d.name; });
+
+      const roleMap: Record<string, string> = {};
+      roles.forEach((r: any) => { roleMap[r.id] = r.role_name; });
+
+      const formattedUsers = (empRes.data || []).map((u: any) => {
+        const deptName = deptMap[u.department_id || u.department] || u.department || 'N/A';
+        const roleName = roleMap[u.role] || u.role || 'staff';
+        return {
+          ...u,
+          departments: { name: deptName },
+          roles: { role_name: roleName }
+        };
+      });
+
+      const uniqueDepts = new Set<string>();
+      formattedUsers.forEach((u: any) => uniqueDepts.add(formatDepartment(u.departments?.name || u.department || 'N/A')));
+      setDepartments(Array.from(uniqueDepts));
+      setUsers(formattedUsers);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    } finally {
+      setLoading(false);
     }
-    const { data: rData } = await supabaseAuth.from('roles').select('*').order('role_name');
-    if (rData) {
-      setRolesList(rData);
-    }
-    const depts = new Set<string>();
-    (data || []).forEach((u: any) => depts.add(u.departments?.name || u.department || 'N/A'));
-    setDepartments(Array.from(depts));
-    setUsers(data || []);
-    setLoading(false);
   };
 
-  const updateStatus = async (iqama: string, status: string) => {
-    const { error } = await supabaseAuth.from('employees').update({ status }).eq('iqama_number', iqama);
+  const updateStatus = async (idOrIqama: string, status: string) => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
+    const { error } = await supabaseAuth.from('employees').update({ status }).eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
     if (!error) {
-      setUsers(prev => prev.map(u => u.iqama_number === iqama ? { ...u, status } : u));
-      setUpdateMsg({ id: iqama, text: 'Status updated' });
+      setUsers(prev => prev.map(u => (u.id === idOrIqama || u.iqama_number === idOrIqama) ? { ...u, status } : u));
+      setUpdateMsg({ id: idOrIqama, text: 'Status updated' });
+      notifyPermissionsChanged(idOrIqama);
       setTimeout(() => setUpdateMsg(null), 3000);
     }
   };
 
-  const updateRole = async (iqama: string, role_id: string) => {
-    const { error } = await supabaseAuth.from('employees').update({ role: role_id || null }).eq('iqama_number', iqama);
+  const updateRole = async (idOrIqama: string, role_id: string) => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
+    const { error } = await supabaseAuth.from('employees').update({ role: role_id || null }).eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
     if (!error) {
       const matchedRole = rolesList.find(r => r.id === role_id);
-      setUsers(prev => prev.map(u => u.iqama_number === iqama ? { ...u, role: role_id, roles: matchedRole ? { role_name: matchedRole.role_name } : null } : u));
-      setUpdateMsg({ id: iqama, text: 'Role updated' });
+      setUsers(prev => prev.map(u => (u.id === idOrIqama || u.iqama_number === idOrIqama) ? { ...u, role: role_id, roles: matchedRole ? { role_name: matchedRole.role_name } : null } : u));
+      setUpdateMsg({ id: idOrIqama, text: 'Role updated' });
+      notifyPermissionsChanged(idOrIqama);
       setTimeout(() => setUpdateMsg(null), 3000);
+    }
+  };
+
+  const assignAsNurse = async (idOrIqama: string, currentDeptStr: string) => {
+    const nurseId = 'd69ccefc-045a-4bb1-8c27-99120e16610b';
+    let newDept = currentDeptStr || '';
+    if (!newDept.includes(nurseId)) {
+      newDept = newDept ? `${newDept},${nurseId}` : nurseId;
+    }
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
+    const { error } = await supabaseAuth.from('employees').update({ department: newDept }).eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
+    if (!error) {
+      setUsers(prev => prev.map(u => (u.id === idOrIqama || u.iqama_number === idOrIqama) ? { ...u, department: newDept } : u));
+      setUpdateMsg({ id: idOrIqama, text: 'Assigned as Nurse' });
+      notifyPermissionsChanged(idOrIqama);
+      setTimeout(() => setUpdateMsg(null), 3000);
+    }
+  };
+
+  const deleteUser = async (idOrIqama: string) => {
+    if (!window.confirm('Are you sure you want to delete this employee? This action cannot be undone.')) return;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
+    const { error } = await supabaseAuth.from('employees').delete().eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
+    if (!error) {
+      setUsers(prev => prev.filter(u => u.id !== idOrIqama && u.iqama_number !== idOrIqama));
+      setUpdateMsg({ id: idOrIqama, text: 'User deleted' });
+      notifyPermissionsChanged(idOrIqama);
+      setTimeout(() => setUpdateMsg(null), 3000);
+    } else {
+      alert('Error deleting user: ' + error.message);
     }
   };
 
@@ -76,7 +143,7 @@ export default function UserManagementPage(props: any) {
   };
 
   const filteredUsers = users.filter(u => {
-    const deptName = u.departments?.name || u.department || 'N/A';
+    const deptName = formatDepartment(u.departments?.name || u.department || 'N/A');
     const matchesFilter = activeFilter === 'All' || deptName === activeFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch = !q ||
@@ -162,6 +229,7 @@ export default function UserManagementPage(props: any) {
         {!embedded && (
           <div className="tabs-nav">
             <Link href="/admin/user" className="tab-btn active">Users List</Link>
+            <Link href="/admin/directory?tab=customize" className="tab-btn">Customize Access</Link>
             <Link href="/admin/directory?tab=attendance" className="tab-btn">Attendance</Link>
             <Link href="/admin/directory?tab=salary" className="tab-btn">Payroll / Salary</Link>
             <Link href="/admin/directory?tab=add_employee" className="tab-btn">Add Employee</Link>
@@ -210,8 +278,8 @@ export default function UserManagementPage(props: any) {
                 <th>Name</th>
                 <th>Iqama / Email</th>
                 <th>Department</th>
-                <th>Role</th>
                 <th>Permission Level</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -241,44 +309,60 @@ export default function UserManagementPage(props: any) {
                       <strong>{user.iqama_number}</strong><br/>
                       <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{user.email || '—'}</span>
                     </td>
-                    <td>{user.departments?.name || user.department || 'N/A'}</td>
+                    <td>{formatDepartment(user.departments?.name || user.department)}</td>
                     <td>
-                      {rolesList.length > 0 ? (
-                        <select 
-                          value={user.role || ''} 
-                          onChange={e => updateRole(user.iqama_number, e.target.value)}
-                          style={{
-                            background: user.roles?.role_name === 'admin' ? '#fef9c3' : (user.roles?.role_name === 'staff' ? '#dbeafe' : '#f1f5f9'),
-                            color: user.roles?.role_name === 'admin' ? '#854d0e' : (user.roles?.role_name === 'staff' ? '#1e40af' : '#475569'),
-                            fontWeight: 600,
-                            borderColor: '#cbd5e1'
-                          }}
-                        >
-                          <option value="">No Role</option>
-                          {rolesList.map(r => (
-                            <option key={r.id} value={r.id}>{r.role_name}</option>
-                          ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <select defaultValue={user.status} onChange={e => updateStatus(user.id || user.iqama_number, e.target.value)}>
+                          <option value="active">Full Access (View + Read)</option>
+                          <option value="view_only">View Only</option>
+                          <option value="disabled">Disabled</option>
                         </select>
-                      ) : (
-                        <span style={{ 
-                          padding: '4px 8px', 
-                          borderRadius: '12px', 
-                          background: user.roles?.role_name === 'admin' ? '#fef08a' : (user.roles?.role_name === 'staff' ? '#bfdbfe' : '#f1f5f9'), 
-                          color: user.roles?.role_name === 'admin' ? '#854d0e' : (user.roles?.role_name === 'staff' ? '#1e40af' : '#475569'),
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          textTransform: 'capitalize'
-                        }}>
-                          {user.roles?.role_name || 'No Role'}
-                        </span>
-                      )}
+                        <Link
+                          href={`/admin/directory/edit/${user.id || user.iqama_number}`}
+                          style={{ fontSize: '0.75rem', color: '#4F5DFF', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 500 }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>folder_shared</span>
+                          {Array.isArray(user.permissions) ? `${user.permissions.length} Folders Authorized` : 'Customize Folders'}
+                        </Link>
+                      </div>
                     </td>
                     <td>
-                      <select defaultValue={user.status} onChange={e => updateStatus(user.iqama_number, e.target.value)}>
-                        <option value="active">Full Access (View + Read)</option>
-                        <option value="view_only">View Only</option>
-                        <option value="disabled">Disabled</option>
-                      </select>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button 
+                          onClick={() => assignAsNurse(user.id || user.iqama_number, user.department)}
+                          style={{ background: '#0ea5e9', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                        >
+                          Assign as Nurse
+                        </button>
+                        <Link
+                          href={`/admin/directory/edit/${user.id || user.iqama_number}`}
+                          style={{
+                            background: '#eff6ff',
+                            color: '#2563eb',
+                            border: '1px solid #bfdbfe',
+                            padding: '6px 10px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            textDecoration: 'none',
+                            fontSize: '0.82rem',
+                            fontWeight: 600
+                          }}
+                          title="Edit Employee & Access Control"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+                          <span>Edit</span>
+                        </Link>
+                        <button
+                          onClick={() => deleteUser(user.id || user.iqama_number)}
+                          style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '6px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Delete User"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

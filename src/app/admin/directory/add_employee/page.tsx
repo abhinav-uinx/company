@@ -45,6 +45,7 @@ export default function AddEmployee(props: any) {
       password: newPassword,
       email: newEmail,
       department_id: newDeptId || null,
+      department: newDeptId || null,
       status: newPermission,
       role: selectedRole || null
     }]);

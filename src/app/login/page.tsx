@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -53,7 +53,7 @@ function LoginContent() {
       const res: any = await login(username, password);
       let targetUrl = "";
       if (res.success) {
-        if (res.mustChangePassword) { setSetupPasswordMode(true); setSetupIdentifier(res.identifier); setTempPass(res.tempPassword || password); setLoading(false); return; } targetUrl = res.role === "admin" ? "/admin/dashboard" : "/user/dashboard";
+        if (res.mustChangePassword) { setSetupPasswordMode(true); setSetupIdentifier(res.identifier); setTempPass(res.tempPassword || password); setLoading(false); return; } targetUrl = res.role === "admin" ? "/admin" : "/user/dashboard";
         // 1. Start animation â€” slide right panel out, expand left
         setPhase('authenticating');
 

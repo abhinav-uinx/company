@@ -22,15 +22,16 @@ export default function Dashboard() {
 
           <div className="service-card" onClick={() => router.push('/customers')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>person</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>person</span>
             </div>
-            <h3>Patient Management</h3>
+            <h3>Customer Management</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>Add / Manage</p>
             <Link className="service-open group" href="/customers"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
           </div>
 
           <div className="service-card" onClick={() => router.push('/escorts')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>flight_takeoff</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>flight_takeoff</span>
             </div>
             <h3>Escort Missions</h3>
             <Link className="service-open group" href="/escorts"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
@@ -38,7 +39,7 @@ export default function Dashboard() {
 
           <div className="service-card" onClick={() => router.push('/documentation')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>description</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>description</span>
             </div>
             <h3>Documentation Services</h3>
             <Link className="service-open group" href="/documentation"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
@@ -46,7 +47,7 @@ export default function Dashboard() {
 
           <div className="service-card" onClick={() => router.push('/invoices')} style={{ cursor: 'pointer' }}>
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>request_quote</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>request_quote</span>
             </div>
             <h3>Invoicing & Billing</h3>
             <Link className="service-open group" href="/invoices"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>

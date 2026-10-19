@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -6,6 +6,7 @@ import { supabaseAuth } from '@/lib/supabase';
 import styles from './customers.module.css';
 import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
+import { useAuth } from '@/components/AuthGuard';
 
 export default function CustomersList() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -23,10 +24,14 @@ export default function CustomersList() {
   
   const [viewCustomer, setViewCustomer] = useState<any>(null);
   const [fullscreenFile, setFullscreenFile] = useState<any>(null);
+  const { role, username, isFolderAllowed } = useAuth();
+  const fileAccessDisabled = role === 'employee' && !isFolderAllowed('customers');
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    if (role === 'admin' || isFolderAllowed('customers')) {
+      fetchCustomers();
+    }
+  }, [role, isFolderAllowed]);
 
   async function fetchCustomers() {
     setLoading(true);
@@ -146,6 +151,24 @@ export default function CustomersList() {
   const getPassports = (customer: any) => {
     return viewPassports;
   };
+
+  if (role === 'employee' && !isFolderAllowed('customers')) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', background: '#fff', padding: '40px 30px', borderRadius: '16px', border: '1px solid #fee2e2', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>block</span>
+        </div>
+        <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: '0 0 10px 0' }}>Access Prohibited</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 25px 0', lineHeight: 1.5 }}>
+          Your account does not have permission to access the <strong>Customer Management</strong> folder. Please contact an administrator.
+        </p>
+        <Link href="/user/dashboard" style={{ background: '#4F5DFF', color: '#fff', textDecoration: 'none', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -373,19 +396,27 @@ export default function CustomersList() {
                 {getPassports(viewCustomer).map((file: any, i: number) => (
                   <div 
                     key={i} 
-                    onClick={() => setFullscreenFile(file)}
+                    className={fileAccessDisabled ? 'access-disabled-btn' : ''}
+                    onClick={() => {
+                      if (fileAccessDisabled) {
+                        alert('File Access Prohibited: You do not have authorization to view this passport document.');
+                        return;
+                      }
+                      setFullscreenFile(file);
+                    }}
                     style={{ 
                       width: '120px', 
                       height: '160px', 
                       background: '#fff', 
                       border: '1px solid #cbd5e1', 
                       borderRadius: '8px', 
-                      cursor: 'pointer',
+                      cursor: fileAccessDisabled ? undefined : 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
                       overflow: 'hidden',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                       transition: 'transform 0.2s',
+                      position: 'relative',
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}

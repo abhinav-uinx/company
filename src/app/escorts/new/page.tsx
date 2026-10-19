@@ -40,7 +40,7 @@ export default function AddEscortMission() {
       const { data: sData } = await supabaseAuth.from('services').select('id').eq('name', 'Medical Escort').single();
       const [pRes, eRes] = await Promise.all([
         supabaseAuth.from('customers').select('id, name, passport').eq('service', sData?.id),
-        supabaseAuth.from('employees').select('iqama_number, name').eq('status', 'active')
+        supabaseAuth.from('employees').select('iqama_number, name').eq('status', 'active').ilike('department', '%d69ccefc-045a-4bb1-8c27-99120e16610b%')
       ]);
       if (pRes.data) setCustomers(pRes.data);
       if (eRes.data) setEmployees(eRes.data);

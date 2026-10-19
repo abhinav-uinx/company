@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from '../customers.module.css';
 import LoadingIcon from '@/components/LoadingIcon';
+import { useAuth } from '@/components/AuthGuard';
 
 export default function CustomerDetail() {
   const params = useParams();
@@ -18,6 +19,8 @@ export default function CustomerDetail() {
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [uploads, setUploads] = useState<any[]>([]);
   const [fullscreenFile, setFullscreenFile] = useState<any>(null);
+  const { role, username, isFolderAllowed } = useAuth();
+  const fileAccessDisabled = role === 'employee' && !isFolderAllowed('customers');
 
   useEffect(() => {
     async function fetchCustomer() {
@@ -180,8 +183,12 @@ export default function CustomerDetail() {
             <input type="email" name="email" value={customer.email || ''} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Physical Address</label>
+            <label>Address in KSA</label>
             <textarea name="address" rows={2} value={customer.address || ''} onChange={handleChange}></textarea>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Address in Origin Country</label>
+            <textarea name="origin_address" rows={2} value={customer.origin_address || ''} onChange={handleChange}></textarea>
           </div>
 
           <div className={styles.formSection}>Service Type</div>
@@ -251,8 +258,36 @@ export default function CustomerDetail() {
                       <>
                         <img src={file.data} alt="Preview" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={() => setFullscreenFile(file)} />
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                          <button type="button" onClick={() => setFullscreenFile(file)} style={{ flex: 1, padding: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span> View</button>
-                          <button type="button" onClick={() => handleShare(file)} style={{ flex: 1, padding: '8px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontWeight: 500 }}><span className="material-symbols-outlined" style={{ fontSize: '18px' }}>share</span> Share</button>
+                          <button 
+                            type="button" 
+                            className={fileAccessDisabled ? 'access-disabled-btn' : ''}
+                            onClick={() => {
+                              if (fileAccessDisabled) {
+                                alert('File Access Prohibited: You do not have authorization to view this document.');
+                                return;
+                              }
+                              setFullscreenFile(file);
+                            }} 
+                            style={{ flex: 1, padding: '8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: fileAccessDisabled ? undefined : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', position: 'relative' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span> View
+                            {fileAccessDisabled && <span className="red-cross-badge" style={{ position: 'absolute', right: '6px', width: '16px', height: '16px', fontSize: '9px' }}>✕</span>}
+                          </button>
+                          <button 
+                            type="button" 
+                            className={fileAccessDisabled ? 'access-disabled-btn' : ''}
+                            onClick={() => {
+                              if (fileAccessDisabled) {
+                                alert('File Access Prohibited: You do not have authorization to share this document.');
+                                return;
+                              }
+                              handleShare(file);
+                            }} 
+                            style={{ flex: 1, padding: '8px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: fileAccessDisabled ? undefined : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontWeight: 500, position: 'relative' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>share</span> Share
+                            {fileAccessDisabled && <span className="red-cross-badge" style={{ position: 'absolute', right: '6px', width: '16px', height: '16px', fontSize: '9px' }}>✕</span>}
+                          </button>
                         </div>
                       </>
                     ) : (

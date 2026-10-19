@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/AuthGuard';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from './invoices.module.css';
 import TableSkeleton from '@/components/TableSkeleton';
@@ -9,13 +10,14 @@ import LoadingIcon from '@/components/LoadingIcon';
 
 export default function InvoicesList() {
   const [invoices, setInvoices] = useState<any[]>([]);
+  const { role, isFolderAllowed } = useAuth();
   const [loading, setLoading] = useState(true);
   const [paymentModal, setPaymentModal] = useState<any>(null);
   const [paymentAmt, setPaymentAmt] = useState(0);
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+  }, [role, isFolderAllowed]);
 
   async function fetchInvoices() {
     setLoading(true);
@@ -33,6 +35,24 @@ export default function InvoicesList() {
     if (status === 'Paid') return styles.statusPaid;
     return styles.statusUnpaid;
   };
+
+  if (role === 'employee' && !isFolderAllowed('invoices')) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', background: '#fff', padding: '40px 30px', borderRadius: '16px', border: '1px solid #fee2e2', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>block</span>
+        </div>
+        <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: '0 0 10px 0' }}>Access Prohibited</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 25px 0', lineHeight: 1.5 }}>
+          Your account does not have permission to access the <strong>Invoice & Billing</strong> folder. Please contact an administrator.
+        </p>
+        <Link href="/user/dashboard" style={{ background: '#4F5DFF', color: '#fff', textDecoration: 'none', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>

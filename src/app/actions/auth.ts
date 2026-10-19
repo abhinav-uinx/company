@@ -297,6 +297,95 @@ export async function checkAuthStatus(loggedInUser: string, role: string) {
   }
 }
 
+export async function getCurrentUserPermissions(): Promise<{
+  role: string;
+  status: string;
+  permissions: string[];
+  allowedFolders: string[];
+}> {
+  const session = await getSession();
+  if (!session) {
+    return { role: '', status: '', permissions: [], allowedFolders: [] };
+  }
+
+  const role = (session.role as string) || '';
+  const username = (session.username as string) || '';
+
+  if (role === 'admin') {
+    const allFolders = ['customers', 'escorts', 'general_services', 'documentation', 'invoices', 'vault', 'reports', 'forms', 'salary'];
+    return { role: 'admin', status: 'active', permissions: allFolders, allowedFolders: allFolders };
+  }
+
+  try {
+    // 1. Check employee account status from employees table
+    const { data: emp } = await supabaseAdmin
+      .from('employees')
+      .select('id, status, permissions')
+      .eq('iqama_number', username)
+      .single();
+
+    const empStatus = emp?.status || 'active';
+    if (empStatus === 'disabled') {
+      return { role: 'employee', status: 'disabled', permissions: [], allowedFolders: [] };
+    }
+
+    // 2. Check employee_folder_permissions table
+    const { data: dbPerms } = await supabaseAdmin
+      .from('employee_folder_permissions')
+      .select('*')
+      .eq('employee_iqama', username);
+
+    let allowed: string[] = [];
+
+    if (dbPerms && dbPerms.length > 0) {
+      const row = dbPerms[0];
+      // Check if horizontal schema row (one row per employee with folder columns)
+      if (row.customers !== undefined || row.escorts !== undefined) {
+        const folderCols = ['customers', 'escorts', 'general_services', 'invoices', 'vault', 'reports', 'forms'];
+        folderCols.forEach(col => {
+          const val = row[col];
+          if (val && val !== 'disabled') {
+            allowed.push(col);
+          }
+        });
+      } else {
+        // Fallback for vertical schema
+        allowed = dbPerms
+          .filter(p => p.is_enabled && p.permission_level !== 'disabled' && p.folder_id)
+          .map(p => p.folder_id);
+      }
+    } else if (emp && emp.permissions !== undefined && emp.permissions !== null) {
+      let raw = emp.permissions;
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch (e) { raw = []; }
+      }
+      if (Array.isArray(raw)) {
+        allowed = raw;
+      } else if (typeof raw === 'object') {
+        allowed = Object.keys(raw).filter(k => raw[k]?.enabled && raw[k]?.permission !== 'disabled');
+      }
+    }
+
+    // Include aliases
+    if (allowed.includes('general_services') && !allowed.includes('documentation')) {
+      allowed.push('documentation');
+    }
+    if (allowed.includes('documentation') && !allowed.includes('general_services')) {
+      allowed.push('general_services');
+    }
+
+    return {
+      role: 'employee',
+      status: empStatus,
+      permissions: allowed,
+      allowedFolders: allowed
+    };
+  } catch (err) {
+    console.error('Error in getCurrentUserPermissions:', err);
+    return { role: 'employee', status: 'active', permissions: [], allowedFolders: [] };
+  }
+}
+
 export async function updatePassword(identifier: string, oldPass: string, newPass: string) {
     const { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', identifier).eq('password', oldPass).single();
     if (!empMatch) return { success: false, error: 'Invalid credentials' };

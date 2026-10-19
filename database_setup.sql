@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS public.admins (
 
 -- 4. Employees Table
 CREATE TABLE IF NOT EXISTS public.employees (
-    iqama_number TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    iqama_number TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     email TEXT,
     password TEXT NOT NULL,

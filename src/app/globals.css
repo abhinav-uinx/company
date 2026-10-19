@@ -550,3 +550,50 @@ button:active, .btn:active, .btn-submit:active, .tab-btn:active {
   100% { transform: translateX(100%); }
 }
 
+
+
+/* ============================================================
+   DISABLED FOLDER & FILE ACCESS STYLES
+   ============================================================ */
+.access-disabled-btn,
+.file-access-disabled,
+[data-access-disabled="true"],
+.btn-disabled-file {
+  opacity: 0.42 !important;
+  filter: grayscale(45%) !important;
+  cursor: not-allowed !important;
+  position: relative !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+}
+
+.access-disabled-btn:hover,
+.file-access-disabled:hover,
+[data-access-disabled="true"]:hover,
+.btn-disabled-file:hover {
+  opacity: 0.55 !important;
+  border-color: #fca5a5 !important;
+  background-color: #fef2f2 !important;
+}
+
+.access-disabled-btn *,
+.file-access-disabled *,
+[data-access-disabled="true"] * {
+  cursor: not-allowed !important;
+}
+
+.red-cross-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+}

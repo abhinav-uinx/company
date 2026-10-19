@@ -28,7 +28,7 @@ export default function Header() {
           </div>
         </div>
         <nav>
-          <Link className="navlink" href="#services">Services</Link>
+          <Link className="navlink" href={userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard'}>Dashboard</Link>
           {userRole === 'admin' && (
             <Link className="navlink" href="/admin/directory">Directory</Link>
           )}

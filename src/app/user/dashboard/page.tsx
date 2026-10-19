@@ -1,16 +1,28 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthGuard';
+import { supabaseAuth } from '@/lib/supabase';
 
 export default function Dashboard() {
   const router = useRouter();
-  const { name, username, role, logout } = useAuth();
+  const { name, username, role, logout, isFolderAllowed } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const userName = name || username || 'Employee';
   const userRole = role || 'employee';
+
+  const [deniedToast, setDeniedToast] = useState<{ show: boolean; folderName: string }>({ show: false, folderName: '' });
+
+  const handleCardClick = (folderKey: string, folderName: string, destination: string) => {
+    if (!isFolderAllowed(folderKey)) {
+      setDeniedToast({ show: true, folderName });
+      setTimeout(() => setDeniedToast({ show: false, folderName: '' }), 4000);
+      return;
+    }
+    router.push(destination);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -56,6 +68,31 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Denied Access Toast */}
+      {deniedToast.show && (
+        <div style={{
+          position: 'fixed',
+          top: '25px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#ef4444',
+          color: '#ffffff',
+          padding: '14px 24px',
+          borderRadius: '10px',
+          boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)',
+          zIndex: 999999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontWeight: 600,
+          fontSize: '0.92rem',
+          border: '1px solid #dc2626'
+        }}>
+          <span className="red-cross-badge" style={{ background: '#fff', color: '#ef4444' }}>✕</span>
+          Access Prohibited: You do not have permission to access the "{deniedToast.folderName}" folder. Please contact an administrator.
+        </div>
+      )}
+
       <section className="services" id="services">
         <div className="services-head">
           <h2>Services</h2>
@@ -63,82 +100,194 @@ export default function Dashboard() {
 
         <div className="service-grid">
 
-          <div className="service-card" onClick={() => router.push('/customers')} style={{ cursor: 'pointer' }}>
+          {/* Customer Management */}
+          <div
+            className={`service-card ${!isFolderAllowed('customers') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('customers', 'Customer Management', '/customers')}
+            style={{ cursor: isFolderAllowed('customers') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('customers') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>person</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>person</span>
             </div>
-            <h3>Patient Management</h3>
-            <Link className="service-open group" href="/customers"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            <h3>Customer Management</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              {isFolderAllowed('customers') ? 'Add / Manage' : 'Access Prohibited'}
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('customers') ? 'arrow_forward' : 'block'}
+              </span>
+            </div>
           </div>
 
-          <div className="service-card" onClick={() => router.push('/escorts')} style={{ cursor: 'pointer' }}>
+          {/* Escort Missions */}
+          <div
+            className={`service-card ${!isFolderAllowed('escorts') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('escorts', 'Escort Missions', '/escorts')}
+            style={{ cursor: isFolderAllowed('escorts') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('escorts') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>flight_takeoff</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>flight_takeoff</span>
             </div>
             <h3>Escort Missions</h3>
-            <Link className="service-open group" href="/escorts"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
-          </div>
-
-          <div className="service-card" onClick={() => router.push('/documentation')} style={{ cursor: 'pointer' }}>
-            <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>description</span>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              {isFolderAllowed('escorts') ? 'Active Flights & Missions' : 'Access Prohibited'}
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('escorts') ? 'arrow_forward' : 'block'}
+              </span>
             </div>
-            <h3>Documentation Services</h3>
-            <Link className="service-open group" href="/documentation"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
           </div>
 
-          <div className="service-card" onClick={() => router.push('/invoices')} style={{ cursor: 'pointer' }}>
+          {/* Documentation Services */}
+          <div
+            className={`service-card ${!isFolderAllowed('documentation') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('documentation', 'General Services', '/documentation')}
+            style={{ cursor: isFolderAllowed('documentation') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('documentation') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
             <div className="service-icon">
-              <span className="material-symbols-outlined" style={{fontSize: '28px', color: 'var(--accent)'}}>request_quote</span>
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>description</span>
             </div>
-            <h3>Invoicing & Billing</h3>
-            <Link className="service-open group" href="/invoices"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            <h3>General Services</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              {isFolderAllowed('documentation') ? 'Attestation & Files' : 'Access Prohibited'}
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('documentation') ? 'arrow_forward' : 'block'}
+              </span>
+            </div>
           </div>
 
-          <div className="service-card" onClick={() => router.push('/vault')} style={{ cursor: 'pointer' }}>
+          {/* Invoicing & Billing */}
+          <div
+            className={`service-card ${!isFolderAllowed('invoices') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('invoices', 'Invoicing & Billing', '/invoices')}
+            style={{ cursor: isFolderAllowed('invoices') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('invoices') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
+            <div className="service-icon">
+              <span className="material-symbols-outlined" style={{fontSize: '22px'}}>request_quote</span>
+            </div>
+            <h3>Invoicing &amp; Billing</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              {isFolderAllowed('invoices') ? 'Accounts & Receipts' : 'Access Prohibited'}
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('invoices') ? 'arrow_forward' : 'block'}
+              </span>
+            </div>
+          </div>
+
+          {/* Document Vault */}
+          <div
+            className={`service-card ${!isFolderAllowed('vault') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('vault', 'Document Vault', '/vault')}
+            style={{ cursor: isFolderAllowed('vault') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('vault') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
             <div className="service-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
             </div>
             <h3>Document Vault</h3>
-            <Link className="service-open group" href="/vault"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              {isFolderAllowed('vault') ? 'Archive Repository' : 'Access Prohibited'}
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('vault') ? 'arrow_forward' : 'block'}
+              </span>
+            </div>
           </div>
 
-          {userRole === 'admin' && (
-            <div className="service-card" onClick={() => router.push('/admin/reports')} style={{ cursor: 'pointer' }}>
+          {/* Reports & Excel Export */}
+          {(userRole === 'admin' || isFolderAllowed('reports')) && (
+            <div
+              className={`service-card ${!isFolderAllowed('reports') ? 'access-disabled-btn' : ''}`}
+              onClick={() => handleCardClick('reports', 'Cloud Admin Reports & Analytics', '/admin/reports')}
+              style={{ cursor: isFolderAllowed('reports') ? 'pointer' : undefined, position: 'relative' }}
+            >
+              {!isFolderAllowed('reports') && (
+                <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+              )}
               <div className="service-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
               </div>
-              <h3>Reports &amp; Excel Export</h3>
-              <Link className="service-open group" href="/admin/reports"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+              <h3>Cloud Admin Reports &amp; Analytics</h3>
+              <div className="service-open group">
+                <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                  {isFolderAllowed('reports') ? 'arrow_forward' : 'block'}
+                </span>
+              </div>
             </div>
           )}
 
-          {userRole === 'admin' && (
-            <div className="service-card admin-only" onClick={() => router.push('#')} style={{ cursor: 'pointer' }}>
-              <span className="admin-tag">Admin only</span>
+          {/* Salary & Payroll */}
+          {(userRole === 'admin' || isFolderAllowed('salary')) && (
+            <div
+              className={`service-card admin-only ${!isFolderAllowed('salary') ? 'access-disabled-btn' : ''}`}
+              onClick={() => handleCardClick('salary', 'Salary & Payroll', '/admin/directory?tab=salary')}
+              style={{ cursor: isFolderAllowed('salary') ? 'pointer' : undefined, position: 'relative' }}
+            >
+              {!isFolderAllowed('salary') && (
+                <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+              )}
+              <span className="admin-tag">Payroll</span>
               <div className="service-icon icon-admin">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </div>
               <h3>Salary &amp; Payroll</h3>
-              <Link className="service-open group" href="#"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+              <div className="service-open group">
+                <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                  {isFolderAllowed('salary') ? 'arrow_forward' : 'block'}
+                </span>
+              </div>
             </div>
           )}
 
-          <div className="service-card" onClick={() => router.push('/forms')} style={{ cursor: 'pointer' }}>
+          {/* Forms */}
+          <div
+            className={`service-card ${!isFolderAllowed('forms') ? 'access-disabled-btn' : ''}`}
+            onClick={() => handleCardClick('forms', 'Document Hub/forms', '/forms')}
+            style={{ cursor: isFolderAllowed('forms') ? 'pointer' : undefined, position: 'relative' }}
+          >
+            {!isFolderAllowed('forms') && (
+              <span className="red-cross-badge" style={{ position: 'absolute', top: '14px', right: '14px' }} title="Access Disabled">✕</span>
+            )}
             <div className="service-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
             </div>
-            <h3>Forms</h3>
-            <Link className="service-open group" href="/forms"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+            <h3>Document Hub/forms</h3>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                {isFolderAllowed('forms') ? 'arrow_forward' : 'block'}
+              </span>
+            </div>
           </div>
 
+          {/* Directory for Admin */}
           {userRole === 'admin' && (
             <div className="service-card admin-only" onClick={() => router.push('/admin/directory')} style={{ cursor: 'pointer' }}>
               <span className="admin-tag">Admin only</span>
               <div className="service-icon icon-admin">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               </div>
-              <h3>Manage Employee</h3>
+              <h3>Employee Directory &amp; Records</h3>
               <Link className="service-open group" href="/admin/directory"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
             </div>
           )}

@@ -6,6 +6,7 @@ import UserManagementPage from '@/app/admin/user/page';
 import AttendancePage from '@/app/admin/directory/attendance/page';
 import SalaryPage from '@/app/admin/directory/salary/page';
 import AddEmployee from '@/app/admin/directory/add_employee/page';
+import CustomizeFolderAccess from '@/app/admin/directory/customize/page';
 
 export default function DirectoryPage() {
   const [activeTab, setActiveTab] = useState('users');
@@ -14,7 +15,7 @@ export default function DirectoryPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab === 'attendance' || tab === 'salary' || tab === 'add_employee' || tab === 'users') {
+      if (tab === 'attendance' || tab === 'salary' || tab === 'add_employee' || tab === 'users' || tab === 'customize') {
         setActiveTab(tab);
       }
     }
@@ -62,6 +63,12 @@ export default function DirectoryPage() {
             Users List
           </button>
           <button 
+            className={`tab-btn ${activeTab === 'customize' ? 'active' : ''}`} 
+            onClick={() => handleTabChange('customize')}
+          >
+            Customize Folder Access
+          </button>
+          <button 
             className={`tab-btn ${activeTab === 'attendance' ? 'active' : ''}`} 
             onClick={() => handleTabChange('attendance')}
           >
@@ -83,6 +90,7 @@ export default function DirectoryPage() {
 
         <div className="tab-pane">
           {activeTab === 'users' && <UserManagementPage embedded />}
+          {activeTab === 'customize' && <CustomizeFolderAccess embedded />}
           {activeTab === 'attendance' && <AttendancePage embedded />}
           {activeTab === 'salary' && <SalaryPage embedded />}
           {activeTab === 'add_employee' && <AddEmployee embedded />}

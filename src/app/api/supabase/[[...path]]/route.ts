@@ -52,9 +52,13 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
 
   // Enforce role-based access for administrative tables
   if (session.role !== 'admin') {
-    const adminOnlyTables = ['admins', 'active_sessions', 'employees', 'payment_history', 'employee_salaries'];
+    const adminOnlyTables = ['admins', 'active_sessions', 'payment_history', 'employee_salaries'];
     if (adminOnlyTables.includes(targetTable)) {
       return NextResponse.json({ error: 'Forbidden. Admin privileges required.' }, { status: 403 });
+    }
+    // Non-admins cannot modify (POST/PATCH/PUT/DELETE) employees
+    if (targetTable === 'employees' && req.method !== 'GET') {
+      return NextResponse.json({ error: 'Forbidden. Admin privileges required to modify employee records.' }, { status: 403 });
     }
   }
 
@@ -95,7 +99,7 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     const contentType = response.headers.get('content-type') || '';
 
     // If response is JSON, sanitize out sensitive data (passwords) so they never reach browser
-    if (contentType.includes('application/json')) {
+    if (contentType.includes('json')) {
       const text = await response.text();
       try {
         const json = JSON.parse(text);
@@ -104,7 +108,7 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
           status: response.status,
           headers: {
             ...Object.fromEntries(responseHeaders.entries()),
-            'Content-Type': 'application/json'
+            'Content-Type': contentType || 'application/json'
           }
         });
       } catch {
@@ -112,7 +116,7 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
           status: response.status,
           headers: {
             ...Object.fromEntries(responseHeaders.entries()),
-            'Content-Type': 'application/json'
+            'Content-Type': contentType || 'application/json'
           }
         });
       }

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -43,6 +43,7 @@ export default function AddCustomer() {
     contact_number: '',
     email: '',
     address: '',
+    origin_address: '',
     passport_no: '',
     passport_expiry: '',
     visa_no: '',
@@ -134,8 +135,12 @@ export default function AddCustomer() {
             <input type="email" name="email" value={formData.email} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Physical Address</label>
+            <label>Address in KSA</label>
             <textarea name="address" rows={2} value={formData.address} onChange={handleChange}></textarea>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Address in Origin Country</label>
+            <textarea name="origin_address" rows={2} value={formData.origin_address} onChange={handleChange}></textarea>
           </div>
 
           <div className={styles.formSection}>Service Type</div>

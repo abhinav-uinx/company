@@ -1,12 +1,20 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
+import Header from '@/app/admin/dashboard/header';
 import styles from '@/app/customers/customers.module.css';
+import ReportsDashboardTool from './excel-export/ReportsDashboard';
+import PreviewModal from './components/PreviewModal';
+import { getCustomerReportData } from './exports/customers/exportCustomerReport';
+import { getRevenueReportData } from './exports/revenue/exportRevenueReport';
+import { getEmployeeReportData } from './exports/employees/exportEmployeeReport';
+import { getServiceProfitReportData } from './exports/services/exportServiceProfitReport';
 
 export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
+
   const [stats, setStats] = useState({
     totalCustomers: 0,
     ongoingMissions: 0,
@@ -20,7 +28,7 @@ export default function ReportsDashboard() {
         supabaseAuth.from('customers').select('id', { count: 'exact', head: true }),
         supabaseAuth.from('escort_missions').select('id', { count: 'exact', head: true }).eq('status', 'In-Transit'),
         supabaseAuth.from('invoices').select('total_amount').eq('status', 'Paid'),
-        supabaseAuth.from('documentation_services').select('id', { count: 'exact', head: true }).in('status', ['Applied', 'In Process'])
+        supabaseAuth.from('general_service_records').select('id', { count: 'exact', head: true }).in('status', ['Applied', 'In Process'])
       ]);
 
       const rev = iRes.data ? iRes.data.reduce((acc, curr) => acc + (curr.total_amount || 0), 0) : 0;
@@ -37,8 +45,10 @@ export default function ReportsDashboard() {
   }, []);
 
   return (
-    <div className={styles.container}>
-      <Link href="/admin/dashboard" className={styles.backBtn}>
+    <>
+      <Header />
+      <div className={styles.container}>
+        <Link href="/admin/dashboard" className={styles.backBtn}>
         <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
       </Link>
       
@@ -68,30 +78,36 @@ export default function ReportsDashboard() {
       <div className={styles.card} style={{ padding: '30px' }}>
         <h3 style={{ marginBottom: '20px', color: '#0f172a' }}>Export Detailed Reports</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <button style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 500, color: '#334155' }}>
-            <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>public</span> Customer Report (Country-wise)</span>
-            <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>download</span>
-          </button>
-          <button style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 500, color: '#334155' }}>
-            <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>request_quote</span> Revenue & Invoice Report</span>
-            <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>download</span>
-          </button>
-          <button style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 500, color: '#334155' }}>
-            <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>group</span> Employee Salary & Attendance Report</span>
-            <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>download</span>
-          </button>
-          <button style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 500, color: '#334155' }}>
-            <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>insights</span> Service-wise Profit Report</span>
-            <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>download</span>
-          </button>
+          <Link href="/admin/reports/customers" style={{ textDecoration: 'none' }}>
+            <button className={styles.reportBtn}>
+              <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>public</span> Customer Report (Country-wise)</span>
+              <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>visibility</span>
+            </button>
+          </Link>
+          <Link href="/admin/reports/revenue" style={{ textDecoration: 'none' }}>
+            <button className={styles.reportBtn}>
+              <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>request_quote</span> Revenue & Invoice Report</span>
+              <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>visibility</span>
+            </button>
+          </Link>
+          <Link href="/admin/reports/employees" style={{ textDecoration: 'none' }}>
+            <button className={styles.reportBtn}>
+              <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>group</span> Employee Salary & Attendance Report</span>
+              <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>visibility</span>
+            </button>
+          </Link>
+          <Link href="/admin/reports/services" style={{ textDecoration: 'none' }}>
+            <button className={styles.reportBtn}>
+              <span><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '10px' }}>insights</span> Service-wise Profit Report</span>
+              <span className="material-symbols-outlined" style={{ color: '#2563eb' }}>visibility</span>
+            </button>
+          </Link>
         </div>
       </div>
+
+      {/* Embedded Excel Export & Tax Calculator Tool */}
+      <ReportsDashboardTool />
     </div>
+    </>
   );
 }
-
-
-
-
-
-

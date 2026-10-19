@@ -1,0 +1,251 @@
+.container {
+  background-color: #ffffff;
+  border-radius: 1rem; /* 16px */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  margin-top: 2rem;
+}
+
+.container:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.header {
+  background: linear-gradient(to right, #f9fafb, #ffffff);
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.headerTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+}
+
+.headerIcon {
+  margin-right: 0.5rem;
+  color: #4f46e5;
+}
+
+.headerDescription {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .controls {
+    width: auto;
+  }
+}
+
+.regionSelectWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.regionLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.regionSelect {
+  background-color: transparent;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #312e81;
+  padding: 0 1.5rem 0 0.25rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.regionSelect:focus {
+  box-shadow: none;
+}
+
+.exportBtn {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  color: #ffffff;
+  background-color: #4f46e5;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .exportBtn {
+    flex: none;
+  }
+}
+
+.exportBtn:hover {
+  background-color: #4338ca;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.exportBtn:active {
+  transform: translateY(0);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background-color: rgba(249, 250, 251, 0.5);
+}
+
+.table th {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table th.rightAlign {
+  text-align: right;
+}
+
+.table th.taxHighlight {
+  color: #4f46e5;
+}
+
+.table th.totalHighlight {
+  color: #111827;
+}
+
+.table tbody {
+  background-color: #ffffff;
+}
+
+.tableRow {
+  border-top: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+}
+
+.tableRow:hover {
+  background-color: rgba(238, 242, 255, 0.5);
+}
+
+.table td {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.table td.rightAlign {
+  text-align: right;
+}
+
+.idCell {
+  font-weight: 700;
+  color: #312e81;
+}
+
+.dateCell {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.descCell {
+  color: #374151;
+}
+
+.amountCell {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.taxCell {
+  color: #6366f1;
+  font-weight: 500;
+  background-color: rgba(238, 242, 255, 0.2);
+}
+
+.totalCell {
+  font-weight: 900;
+  color: #111827;
+}
+
+.table tfoot {
+  background-color: #111827;
+  color: #ffffff;
+}
+
+.tfootRow td {
+  padding: 1.25rem 1.5rem;
+  font-weight: 700;
+}
+
+.tfootLabel {
+  text-align: right;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #d1d5db;
+}
+
+.tfootAmount {
+  text-align: right;
+}
+
+.tfootTax {
+  text-align: right;
+  color: #a5b4fc;
+  background-color: rgba(49, 46, 129, 0.4);
+}
+
+.tfootTotal {
+  text-align: right;
+  font-weight: 900;
+  font-size: 1.125rem;
+  color: #ffffff;
+}

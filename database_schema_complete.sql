@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS public.admins (
 
 -- 4. Employees Table
 CREATE TABLE IF NOT EXISTS public.employees (
-    iqama_number TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    iqama_number TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     email TEXT,
     password TEXT NOT NULL,
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     contact_number TEXT,
     email TEXT,
     address TEXT,
+    origin_address TEXT,
     passport_no TEXT,
     passport_expiry DATE,
     visa_no TEXT,
@@ -220,7 +222,21 @@ CREATE TABLE IF NOT EXISTS public.employee_salaries (
     UNIQUE(employee_iqama, month)
 );
 
+-- 17. Generated Reports Table
+CREATE TABLE IF NOT EXISTS public.generated_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_name TEXT NOT NULL,
+    region TEXT NOT NULL, -- 'India' or 'KSA'
+    total_base_amount NUMERIC(10, 2) DEFAULT 0,
+    total_tax_amount NUMERIC(10, 2) DEFAULT 0,
+    total_amount_with_tax NUMERIC(10, 2) DEFAULT 0,
+    file_url TEXT, -- URL to the stored Excel/PDF file in Supabase Storage
+    generated_by TEXT, -- username or employee_iqama
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================================================
+
 -- PERFORMANCE INDEXES (Optimizes query speeds & eliminates delays)
 -- =========================================================================
 CREATE INDEX IF NOT EXISTS idx_customers_service ON public.customers(service);
@@ -240,3 +256,4 @@ CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON public.active_sessions(
 
 CREATE INDEX IF NOT EXISTS idx_attendance_iqama_date ON public.employee_attendance(employee_iqama, date DESC);
 CREATE INDEX IF NOT EXISTS idx_salaries_iqama_month ON public.employee_salaries(employee_iqama, month);
+CREATE INDEX IF NOT EXISTS idx_generated_reports_created_at ON public.generated_reports(created_at DESC);
