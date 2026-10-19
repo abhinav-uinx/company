@@ -1047,7 +1047,7 @@ export default function Vault() {
                     </div>
                   ) : (
                     <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '12px', color: '#64748b' }}>
-                      No MEDIF form uploaded yet. Use the "Upload MEDIF Form" button above to attach one.
+                      No MEDIF form uploaded yet. Use the &quot;Upload MEDIF Form&quot; button above to attach one.
                     </div>
                   )}
                 </div>
