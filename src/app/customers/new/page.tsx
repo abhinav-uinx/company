@@ -65,32 +65,71 @@ export default function AddCustomer() {
     setLoading(true);
     setMsg({ text: '', type: '' });
 
-    // Handle empty date strings passing to date columns
-    const cleanData = { ...formData };
-    if (!cleanData.dob) delete (cleanData as any).dob;
-    if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
-    if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
+    try {
+      // Handle empty date strings passing to date columns
+      const cleanData: any = { ...formData };
+      if (!cleanData.dob) delete cleanData.dob;
+      if (!cleanData.passport_expiry) delete cleanData.passport_expiry;
+      if (!cleanData.visa_expiry) delete cleanData.visa_expiry;
 
-    const { data: newCustomer, error } = await supabaseAuth.from('customers').insert([cleanData]).select().single();
+      const { data: newCustomer, error } = await supabaseAuth.from('customers').insert([cleanData]).select().single();
 
-    if (error) {
-      setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
-    } else {
-      // Automatically create the folder structure in the storage buckets
-      const serviceObj = services.find(s => s.id === formData.service);
-      if (serviceObj && newCustomer) {
-        const bucket = serviceObj.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
-        const emptyBlob = new Blob([' '], { type: 'text/plain' });
-        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/passport/.keep`, emptyBlob);
-        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/ticket/.keep`, emptyBlob);
+      if (error) {
+        setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
+        setLoading(false);
+        return;
       }
 
-      setMsg({ text: 'Customer added successfully! Redirecting...', type: 'success' });
+      // Automatically create the folder structure and upload passport files to the storage bucket
+      const serviceObj = services.find(s => s.id === formData.service);
+      const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+
+      if (bucket && newCustomer) {
+        const emptyBlob = new Blob([' '], { type: 'text/plain' });
+        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/passport/.keep`, emptyBlob, { upsert: true });
+        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/ticket/.keep`, emptyBlob, { upsert: true });
+
+        // Upload any selected passport images/PDFs
+        const uploadedPassportMeta: Array<{ name: string; path: string }> = [];
+
+        for (const file of uploads) {
+          const filePath = `${newCustomer.id}/passport/${file.name}`;
+          const { error: uploadError } = await supabaseAuth.storage
+            .from(bucket)
+            .upload(filePath, file, {
+              contentType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+              upsert: true
+            });
+
+          if (!uploadError) {
+            uploadedPassportMeta.push({
+              name: file.name,
+              path: filePath
+            });
+          } else {
+            console.error('Passport file upload error:', file.name, uploadError);
+          }
+        }
+
+        // Save uploaded passport files metadata to the customer record
+        if (uploadedPassportMeta.length > 0) {
+          await supabaseAuth
+            .from('customers')
+            .update({ passport: uploadedPassportMeta })
+            .eq('id', newCustomer.id);
+        }
+      }
+
+      setMsg({ text: 'Customer and passport files uploaded successfully! Redirecting...', type: 'success' });
       setTimeout(() => {
         router.push('/customers');
       }, 1500);
+    } catch (err: any) {
+      console.error('Error creating customer:', err);
+      setMsg({ text: 'Unexpected error: ' + (err.message || err), type: 'error' });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const selectedService = services.find(s => s.id === formData.service);
@@ -235,7 +274,7 @@ export default function AddCustomer() {
             {msg.text && <div className={`${styles.message} ${styles[msg.type]}`}>{msg.text}</div>}
           
           <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Customer Profile'}
+            {loading ? 'Saving Customer & Uploading Files...' : 'Save Customer Profile'}
           </button>
         </form>
       </div>

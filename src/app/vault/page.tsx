@@ -17,6 +17,7 @@ export default function Vault() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
 
   // Filtering & Search
   const [search, setSearch] = useState('');
@@ -29,17 +30,25 @@ export default function Vault() {
   const [loadingPassports, setLoadingPassports] = useState(false);
   const [fullscreenFile, setFullscreenFile] = useState<any | null>(null);
 
+  // Nurse Details Modal
+  const [selectedNurse, setSelectedNurse] = useState<any | null>(null);
+
+  // MEDIF Forms State
+  const [medifMap, setMedifMap] = useState<Record<string, any[]>>({});
+  const [uploadingMedif, setUploadingMedif] = useState(false);
+
   // Fetch Vault Data
   const fetchAllVaultData = async () => {
     setLoading(true);
     setError('');
     try {
-      const [cRes, sRes, invRes, payRes, mRes] = await Promise.all([
+      const [cRes, sRes, invRes, payRes, mRes, empRes] = await Promise.all([
         supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
         supabaseAuth.from('services').select('*'),
         supabaseAuth.from('invoices').select('*').order('created_at', { ascending: false }),
         supabaseAuth.from('payment_history').select('*').order('payment_date', { ascending: false }),
-        supabaseAuth.from('escort_missions').select('*')
+        supabaseAuth.from('escort_missions').select('*'),
+        supabaseAuth.from('employees').select('id, iqama_number, name, email, phone_number, photo_url, job_title, department, status, last_login')
       ]);
 
       if (cRes.error) throw cRes.error;
@@ -47,7 +56,56 @@ export default function Vault() {
       if (invRes.data) setInvoices(invRes.data);
       if (payRes.data) setPayments(payRes.data);
       if (mRes.data) setMissions(mRes.data);
+      if (empRes.data) setEmployees(empRes.data);
       if (cRes.data) setCustomers(cRes.data);
+
+      // Fetch MEDIF forms for all customers from storage
+      const custList = cRes.data || [];
+      const newMedifMap: Record<string, any[]> = {};
+
+      await Promise.all(
+        custList.map(async (cust: any) => {
+          try {
+            let { data: mList } = await supabaseAuth.storage.from('medical_escort').list(`${cust.id}/medif form`);
+            let usedBucket = 'medical_escort';
+
+            let validFiles = (mList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+            if (validFiles.length === 0) {
+              const { data: gList } = await supabaseAuth.storage.from('general_service').list(`${cust.id}/medif form`);
+              const validG = (gList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+              if (validG.length > 0) {
+                validFiles = validG;
+                usedBucket = 'general_service';
+              }
+            }
+
+            if (validFiles.length > 0) {
+              const filesWithUrl = await Promise.all(
+                validFiles.map(async f => {
+                  const path = `${cust.id}/medif form/${f.name}`;
+                  const { data: signed } = await supabaseAuth.storage.from(usedBucket).createSignedUrl(path, 3600);
+                  return {
+                    name: f.name,
+                    path,
+                    bucket: usedBucket,
+                    size: f.metadata?.size || 0,
+                    updated_at: f.updated_at || f.created_at,
+                    url: signed?.signedUrl || '',
+                    type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'
+                  };
+                })
+              );
+              newMedifMap[cust.id] = filesWithUrl.filter(f => f.url);
+            } else {
+              newMedifMap[cust.id] = [];
+            }
+          } catch {
+            newMedifMap[cust.id] = [];
+          }
+        })
+      );
+
+      setMedifMap(newMedifMap);
     } catch (err: any) {
       console.error('Vault data fetch error:', err);
       setError(err.message || 'Failed to load vault records');
@@ -60,7 +118,7 @@ export default function Vault() {
     fetchAllVaultData();
   }, []);
 
-  // Process Customers with Invoices, Payments, and Missions
+  // Process Customers with Invoices, Payments, Missions, and Assigned Nurse
   const processedCustomers = useMemo(() => {
     return customers.map(cust => {
       const serviceObj = services.find(s => s.id === cust.service);
@@ -99,6 +157,26 @@ export default function Vault() {
       // Customer Escort Mission(s)
       const custMissions = missions.filter(m => m.customer_id === cust.id);
 
+      // Assigned Nurse Lookup (from mission or customer record)
+      const assignedMission = custMissions.find(m => m.escort_employee_iqama);
+      const nurseIqama = cust.assigned_nurse_iqama || cust.nurse_iqama || assignedMission?.escort_employee_iqama || null;
+
+      let nurse: any = null;
+      if (nurseIqama) {
+        nurse = employees.find(e => e.iqama_number === nurseIqama || e.id === nurseIqama);
+        if (!nurse) {
+          nurse = {
+            name: assignedMission?.employee_name || 'Assigned Nurse',
+            iqama_number: nurseIqama,
+            job_title: 'Flight Nurse / Medical Escort',
+            department: 'Clinical Operations / Nursing',
+            status: 'active'
+          };
+        }
+      }
+
+      const custMedifFiles = medifMap[cust.id] || [];
+
       return {
         ...cust,
         serviceName,
@@ -108,10 +186,13 @@ export default function Vault() {
         totalAdvance,
         totalBalance,
         paymentStatus,
-        custMissions
+        custMissions,
+        nurse,
+        nurseIqama,
+        medifFiles: custMedifFiles
       };
     });
-  }, [customers, services, invoices, payments, missions]);
+  }, [customers, services, invoices, payments, missions, employees, medifMap]);
 
   // Filtered Customer List
   const filteredCustomers = useMemo(() => {
@@ -125,7 +206,10 @@ export default function Vault() {
         (c.nationality && c.nationality.toLowerCase().includes(q)) ||
         (c.contact_number && c.contact_number.toLowerCase().includes(q)) ||
         (c.email && c.email.toLowerCase().includes(q)) ||
-        (c.serviceName && c.serviceName.toLowerCase().includes(q));
+        (c.serviceName && c.serviceName.toLowerCase().includes(q)) ||
+        (c.nurse?.name && c.nurse.name.toLowerCase().includes(q)) ||
+        (c.nurse?.iqama_number && c.nurse.iqama_number.toLowerCase().includes(q)) ||
+        (c.medifFiles && c.medifFiles.some((f: any) => f.name.toLowerCase().includes(q)));
 
       // Service filter
       const matchService = serviceFilter === 'all' ||
@@ -141,7 +225,8 @@ export default function Vault() {
 
   // Open Full Customer Dossier
   const handleOpenCustomer = async (cust: any) => {
-    setSelectedCustomer(cust);
+    const mFiles = medifMap[cust.id] || cust.medifFiles || [];
+    setSelectedCustomer({ ...cust, medifFiles: mFiles });
     setLoadingPassports(true);
     setCustomerPassports([]);
 
@@ -165,6 +250,75 @@ export default function Vault() {
       console.error('Error fetching passport storage files:', err);
     } finally {
       setLoadingPassports(false);
+    }
+  };
+
+  // Upload MEDIF Form for a Customer
+  const handleUploadMedif = async (file: File, customerId: string) => {
+    if (!file || !customerId) return;
+    setUploadingMedif(true);
+    try {
+      const filePath = `${customerId}/medif form/${file.name}`;
+      const { error: upErr } = await supabaseAuth.storage.from('medical_escort').upload(filePath, file, { upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: signed } = await supabaseAuth.storage.from('medical_escort').createSignedUrl(filePath, 3600);
+      const newEntry = {
+        name: file.name,
+        path: filePath,
+        bucket: 'medical_escort',
+        size: file.size,
+        updated_at: new Date().toISOString(),
+        url: signed?.signedUrl || '',
+        type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'
+      };
+
+      setMedifMap(prev => {
+        const existing = prev[customerId] || [];
+        return {
+          ...prev,
+          [customerId]: [...existing.filter(f => f.name !== file.name), newEntry]
+        };
+      });
+
+      setSelectedCustomer((prev: any) => {
+        if (!prev || prev.id !== customerId) return prev;
+        const currentList = prev.medifFiles || [];
+        return {
+          ...prev,
+          medifFiles: [...currentList.filter((f: any) => f.name !== file.name), newEntry]
+        };
+      });
+    } catch (err: any) {
+      console.error('MEDIF upload error:', err);
+      alert('Failed to upload MEDIF form: ' + err.message);
+    } finally {
+      setUploadingMedif(false);
+    }
+  };
+
+  // Delete MEDIF Form for a Customer
+  const handleDeleteMedif = async (filePath: string, customerId: string, bucket = 'medical_escort') => {
+    if (!confirm('Are you sure you want to remove this MEDIF form?')) return;
+    try {
+      const { error: delErr } = await supabaseAuth.storage.from(bucket).remove([filePath]);
+      if (delErr) throw delErr;
+
+      setMedifMap(prev => ({
+        ...prev,
+        [customerId]: (prev[customerId] || []).filter(f => f.path !== filePath)
+      }));
+
+      setSelectedCustomer((prev: any) => {
+        if (!prev || prev.id !== customerId) return prev;
+        return {
+          ...prev,
+          medifFiles: (prev.medifFiles || []).filter((f: any) => f.path !== filePath)
+        };
+      });
+    } catch (err: any) {
+      console.error('Delete MEDIF error:', err);
+      alert('Failed to delete MEDIF form: ' + err.message);
     }
   };
 
@@ -206,9 +360,9 @@ export default function Vault() {
         /* Table */
         .table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .vault-table { width: 100%; min-width: 950px; border-collapse: collapse; text-align: left; }
-        .vault-table th { background: #f8fafc; padding: 14px 18px; font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-        .vault-table td { padding: 15px 18px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .vault-table { width: 100%; min-width: 1050px; border-collapse: collapse; text-align: left; }
+        .vault-table th { background: #f8fafc; padding: 14px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        .vault-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
         .vault-table tr:hover { background: #fafbff; }
         .vault-table tr:last-child td { border-bottom: none; }
 
@@ -219,6 +373,14 @@ export default function Vault() {
         .badge-unpaid { background: #fee2e2; color: #b91c1c; }
         .badge-noinv { background: #f1f5f9; color: #64748b; }
         .badge-service { background: #EEF2FF; color: #4338CA; font-weight: 600; text-transform: none; }
+
+        /* Nurse Chip Clickable */
+        .nurse-chip { transition: all 0.2s; cursor: pointer; user-select: none; }
+        .nurse-chip:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25); background: #d1fae5 !important; }
+
+        /* MEDIF Badge Button */
+        .medif-badge-btn { transition: all 0.2s; cursor: pointer; user-select: none; }
+        .medif-badge-btn:hover { background: #fee2e2 !important; border-color: #fca5a5 !important; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15); }
 
         /* Action View Button */
         .view-action-btn { background: #4F5DFF; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79, 93, 255, 0.25); transition: all 0.2s; white-space: nowrap; }
@@ -259,7 +421,7 @@ export default function Vault() {
               Document Vault
             </h1>
             <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-              Centralized customer dossiers, payment records, travel credentials, and vaulted documents.
+              Centralized customer dossiers, payment records, travel credentials, MEDIF forms, and vaulted documents.
             </p>
           </div>
         </div>
@@ -270,7 +432,7 @@ export default function Vault() {
             <span className="material-symbols-outlined search-icon">search</span>
             <input
               type="text"
-              placeholder="Search by Name, Iqama, Passport No, Nationality, Phone..."
+              placeholder="Search by Customer Name, Iqama, Passport No, MEDIF..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -318,15 +480,14 @@ export default function Vault() {
                   <th style={{ width: '15%' }}>Iqama</th>
                   <th style={{ width: '15%' }}>Passport No</th>
                   <th style={{ width: '14%' }}>Service</th>
-                  <th style={{ width: '16%' }}>Payment Info</th>
-                  <th style={{ width: '10%' }}>Contact</th>
-                  <th style={{ width: '8%', textAlign: 'center' }}>Action</th>
+                  <th style={{ width: '20%' }}>Payment Info</th>
+                  <th style={{ width: '14%', textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '60px' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '60px' }}>
                       <LoadingIcon />
                     </td>
                   </tr>
@@ -402,14 +563,7 @@ export default function Vault() {
                           </div>
                         </td>
 
-                        {/* 6. Contact */}
-                        <td>
-                          <div style={{ fontSize: '13px', color: '#334155' }}>
-                            {customer.contact_number || <span style={{ color: '#94a3b8' }}>N/A</span>}
-                          </div>
-                        </td>
-
-                        {/* 7. Action: View Details */}
+                        {/* 6. Action: View Details */}
                         <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
@@ -426,7 +580,7 @@ export default function Vault() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#cbd5e1', marginBottom: '8px' }}>search_off</span>
                       <h3 style={{ margin: '4px 0', fontSize: '16px', color: '#334155' }}>No customers found in vault</h3>
                       <p style={{ margin: 0, fontSize: '13px' }}>Try searching with a different name, passport number, or filter.</p>
@@ -481,7 +635,7 @@ export default function Vault() {
             {/* Modal Body */}
             <div className="modal-body">
 
-              {/* 1. FINANCIAL & PAYMENT INFO (EXPLICIT USER REQUIREMENT) */}
+              {/* 1. FINANCIAL & PAYMENT INFO */}
               <div className="modal-section" style={{ borderLeft: '4px solid #10b981' }}>
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#10b981' }}>payments</span>
@@ -566,7 +720,7 @@ export default function Vault() {
                 )}
               </div>
 
-              {/* 2. PRIMARY IDENTITY & CONTACT ("NAME, IQAMA, PASSPORT NO FIRST") */}
+              {/* 3. PRIMARY IDENTITY & CONTACT ("NAME, IQAMA, PASSPORT NO FIRST") */}
               <div className="modal-section" style={{ borderLeft: '4px solid #4F5DFF' }}>
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>badge</span>
@@ -619,7 +773,7 @@ export default function Vault() {
                 </div>
               </div>
 
-              {/* 3. VISA & IMMIGRATION DETAILS */}
+              {/* 4. VISA & IMMIGRATION DETAILS */}
               <div className="modal-section">
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#8b5cf6' }}>flight</span>
@@ -646,7 +800,7 @@ export default function Vault() {
                 </div>
               </div>
 
-              {/* 4. EMERGENCY CONTACTS */}
+              {/* 5. EMERGENCY CONTACTS */}
               <div className="modal-section">
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>emergency</span>
@@ -665,7 +819,7 @@ export default function Vault() {
                 </div>
               </div>
 
-              {/* 5. MEDICAL INFORMATION */}
+              {/* 6. MEDICAL INFORMATION */}
               <div className="modal-section">
                 <div className="section-title">
                   <span className="material-symbols-outlined" style={{ color: '#ef4444' }}>medical_services</span>
@@ -694,7 +848,7 @@ export default function Vault() {
                 </div>
               </div>
 
-              {/* 6. ESCORT MISSIONS & OPERATIONAL SERVICE DATA */}
+              {/* 7. ESCORT MISSIONS & OPERATIONAL SERVICE DATA */}
               {selectedCustomer.custMissions && selectedCustomer.custMissions.length > 0 && (
                 <div className="modal-section">
                   <div className="section-title">
@@ -735,45 +889,209 @@ export default function Vault() {
                 </div>
               )}
 
-              {/* 7. ATTACHED DOCUMENTS & VAULT FILES */}
-              <div className="modal-section">
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>attachment</span>
-                  Vault Files &amp; Passports
+              {/* 7. ATTACHED DOCUMENTS: VAULT FILES, PASSPORTS & MEDIF FORMS */}
+              <div className="modal-section" style={{ borderLeft: '4px solid #4F5DFF' }}>
+                <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>folder_shared</span>
+                    Vault Files &amp; Passports
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Link
+                      href="/forms"
+                      target="_blank"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: '#0284c7',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        background: '#e0f2fe',
+                        padding: '5px 10px',
+                        borderRadius: '6px'
+                      }}
+                      title="Open airline MEDIF template forms hub"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>download</span>
+                      Airline MEDIF Templates
+                    </Link>
+
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#0284c7',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        cursor: uploadingMedif ? 'wait' : 'pointer',
+                        opacity: uploadingMedif ? 0.7 : 1
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                        {uploadingMedif ? 'sync' : 'upload_file'}
+                      </span>
+                      {uploadingMedif ? 'Uploading...' : 'Upload MEDIF Form'}
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        disabled={uploadingMedif}
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleUploadMedif(e.target.files[0], selectedCustomer.id);
+                          }
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
                 </div>
 
-                {loadingPassports ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading passport files...</div>
-                ) : customerPassports.length > 0 ? (
-                  <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                    {customerPassports.map((file, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => setFullscreenFile(file)}
-                        style={{
-                          width: '130px', height: '160px', background: '#fff', border: '1px solid #cbd5e1',
-                          borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', display: 'flex',
-                          flexDirection: 'column', boxShadow: '0 2px 5px rgba(0,0,0,0.06)', transition: 'transform 0.2s'
-                        }}
-                      >
-                        <div style={{ flex: 1, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {file.type.includes('image') ? (
-                            <img src={file.url} alt="Passport preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#ef4444' }}>picture_as_pdf</span>
-                          )}
-                        </div>
-                        <div style={{ padding: '6px 8px', fontSize: '11px', textAlign: 'center', fontWeight: 600, color: '#334155', borderTop: '1px solid #e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {file.name}
-                        </div>
-                      </div>
-                    ))}
+                {/* Sub-section A: MEDIF Forms */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#0284c7' }}>assignment_late</span>
+                    MEDIF Forms ({selectedCustomer.medifFiles ? selectedCustomer.medifFiles.length : 0})
                   </div>
-                ) : (
-                  <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
-                    No passport files uploaded in storage for this customer.
+
+                  {selectedCustomer.medifFiles && selectedCustomer.medifFiles.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedCustomer.medifFiles.map((file: any, idx: number) => (
+                        <div
+                          key={file.path || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: '#f0f9ff',
+                            border: '1px solid #bae6fd',
+                            borderRadius: '10px',
+                            padding: '10px 14px',
+                            flexWrap: 'wrap',
+                            gap: '10px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '36px', height: '36px', borderRadius: '8px',
+                              background: '#fef2f2', border: '1px solid #fecaca',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: '#dc2626', flexShrink: 0
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>picture_as_pdf</span>
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
+                                {file.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
+                                {file.size ? <span>{(file.size / 1024).toFixed(1)} KB</span> : null}
+                                {file.updated_at ? <span>Uploaded on {new Date(file.updated_at).toLocaleDateString()}</span> : null}
+                                <span style={{ color: '#0284c7', fontWeight: 600 }}>Airline MEDIF</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setFullscreenFile(file)}
+                              style={{
+                                background: '#0284c7', color: '#fff', border: 'none',
+                                padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
+                                fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
+                                alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
+                              Preview
+                            </button>
+
+                            <a
+                              href={file.url}
+                              download={file.name}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                background: '#fff', color: '#334155', border: '1px solid #cbd5e1',
+                                padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
+                                fontWeight: 600, textDecoration: 'none', display: 'inline-flex',
+                                alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>download</span>
+                              Download
+                            </a>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMedif(file.path, selectedCustomer.id, file.bucket || 'medical_escort')}
+                              style={{
+                                background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca',
+                                padding: '5px 8px', borderRadius: '6px', fontSize: '12px',
+                                fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
+                                alignItems: 'center'
+                              }}
+                              title="Delete MEDIF file"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '12px', color: '#64748b' }}>
+                      No MEDIF form uploaded yet. Use the "Upload MEDIF Form" button above to attach one.
+                    </div>
+                  )}
+                </div>
+
+                {/* Sub-section B: Customer Passports */}
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#4F5DFF' }}>badge</span>
+                    Customer Passports ({customerPassports.length})
                   </div>
-                )}
+
+                  {loadingPassports ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading passport files...</div>
+                  ) : customerPassports.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      {customerPassports.map((file, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setFullscreenFile(file)}
+                          style={{
+                            width: '130px', height: '160px', background: '#fff', border: '1px solid #cbd5e1',
+                            borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', display: 'flex',
+                            flexDirection: 'column', boxShadow: '0 2px 5px rgba(0,0,0,0.06)', transition: 'transform 0.2s'
+                          }}
+                        >
+                          <div style={{ flex: 1, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {file.type.includes('image') ? (
+                              <img src={file.url} alt="Passport preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#ef4444' }}>picture_as_pdf</span>
+                            )}
+                          </div>
+                          <div style={{ padding: '6px 8px', fontSize: '11px', textAlign: 'center', fontWeight: 600, color: '#334155', borderTop: '1px solid #e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {file.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
+                      No passport files uploaded in storage for this customer.
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -798,6 +1116,139 @@ export default function Vault() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* NURSE DETAILS MODAL (POPUP ON CLICKING NURSE NAME/IQAMA) */}
+      {/* ======================================================== */}
+      {selectedNurse && (
+        <div className="modal-overlay" onClick={() => setSelectedNurse(null)}>
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '520px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              animation: 'zoomIn 0.2s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Banner */}
+            <div style={{
+              padding: '26px 28px',
+              background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)',
+              color: '#ffffff',
+              position: 'relative'
+            }}>
+              <button
+                type="button"
+                onClick={() => setSelectedNurse(null)}
+                style={{
+                  position: 'absolute', top: '16px', right: '16px',
+                  background: 'rgba(255,255,255,0.15)', border: 'none',
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '68px', height: '68px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '28px', fontWeight: 800, color: '#fff',
+                  boxShadow: '0 6px 16px rgba(0, 0, 0, 0.25)',
+                  border: '3px solid rgba(255, 255, 255, 0.4)',
+                  overflow: 'hidden', flexShrink: 0
+                }}>
+                  {selectedNurse.photo_url ? (
+                    <img src={selectedNurse.photo_url} alt={selectedNurse.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (selectedNurse.name || 'N').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{selectedNurse.name}</h3>
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.2)', color: '#a7f3d0',
+                      padding: '2px 8px', borderRadius: '999px', fontSize: '11px',
+                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em'
+                    }}>
+                      {selectedNurse.status || 'Active'}
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', color: '#a7f3d0', fontSize: '13px', fontWeight: 500 }}>
+                    {selectedNurse.job_title || 'Flight Nurse / Medical Escort'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Nurse Info List */}
+            <div style={{ padding: '24px 28px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: '#ffffff', borderRadius: '14px', padding: '18px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Iqama / Civil ID</span>
+                  <span style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'monospace', color: '#0f172a' }}>
+                    {selectedNurse.iqama_number || 'N/A'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Department</span>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                    {selectedNurse.department || 'Clinical Operations / Nursing'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Contact Phone</span>
+                  {selectedNurse.phone_number ? (
+                    <a href={`tel:${selectedNurse.phone_number}`} style={{ fontSize: '14px', fontWeight: 700, color: '#059669', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>call</span>
+                      {selectedNurse.phone_number}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '14px', color: '#94a3b8' }}>Not Provided</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Email Address</span>
+                  {selectedNurse.email ? (
+                    <a href={`mailto:${selectedNurse.email}`} style={{ fontSize: '14px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>mail</span>
+                      {selectedNurse.email}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: '14px', color: '#94a3b8' }}>Not Provided</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '16px 28px', background: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedNurse(null)}
+                style={{
+                  background: '#064e3b', color: '#ffffff', border: 'none',
+                  padding: '9px 24px', borderRadius: '8px', fontSize: '13px',
+                  fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Close Profile
+              </button>
             </div>
           </div>
         </div>
