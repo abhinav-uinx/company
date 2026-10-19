@@ -880,7 +880,7 @@ export default function EditEmployeePage() {
                     </button>
                   </div>
                   <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Leave blank to preserve the employee's existing login credentials.
+                    Leave blank to preserve the employee&apos;s existing login credentials.
                   </p>
                 </div>
               )}

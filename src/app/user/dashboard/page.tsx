@@ -89,7 +89,7 @@ export default function Dashboard() {
           border: '1px solid #dc2626'
         }}>
           <span className="red-cross-badge" style={{ background: '#fff', color: '#ef4444' }}>✕</span>
-          Access Prohibited: You do not have permission to access the "{deniedToast.folderName}" folder. Please contact an administrator.
+          Access Prohibited: You do not have permission to access the &quot;{deniedToast.folderName}&quot; folder. Please contact an administrator.
         </div>
       )}
 
