@@ -46,6 +46,7 @@ export default function Dashboard() {
               <Link className="navlink" href="/admin/directory">Directory</Link>
             )}
             {userRole === 'admin' && <Link className="navlink" href="/admin/reports">Reports</Link>}
+            <Link className="navlink" href="/user/sessions">Sessions</Link>
             <Link className="navlink" href="#">Help</Link>
           </nav>
           <div className="user-info" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => setMenuOpen(!menuOpen)}>
@@ -55,6 +56,10 @@ export default function Dashboard() {
             </span>
             {menuOpen && (
               <div style={{ display: 'block', position: 'absolute', right: 0, top: '45px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', width: '180px', zIndex: 9999, padding: '10px' }}>
+                <button onClick={() => router.push('/user/sessions')} style={{ width: '100%', textAlign: 'left', padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>devices</span> Active Sessions
+                </button>
+                <div style={{ height: '1px', background: '#e2e8f0', margin: '5px 0' }}></div>
                 <button style={{ width: '100%', textAlign: 'left', padding: '8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '4px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit Profile
                 </button>
@@ -149,7 +154,7 @@ export default function Dashboard() {
           {/* Documentation Services */}
           <div
             className={`service-card ${!isFolderAllowed('documentation') ? 'access-disabled-btn' : ''}`}
-            onClick={() => handleCardClick('documentation', 'General Services', '/documentation')}
+            onClick={() => handleCardClick('documentation', 'Documentation Services', '/documentation')}
             style={{ cursor: isFolderAllowed('documentation') ? 'pointer' : undefined, position: 'relative' }}
           >
             {!isFolderAllowed('documentation') && (
@@ -158,7 +163,7 @@ export default function Dashboard() {
             <div className="service-icon">
               <span className="material-symbols-outlined" style={{fontSize: '22px'}}>description</span>
             </div>
-            <h3>General Services</h3>
+            <h3>Documentation Services</h3>
             <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
               {isFolderAllowed('documentation') ? 'Attestation & Files' : 'Access Prohibited'}
             </p>
@@ -280,6 +285,26 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Active Sessions */}
+          <div
+            className="service-card"
+            onClick={() => router.push('/user/sessions')}
+            style={{ cursor: 'pointer', position: 'relative' }}
+          >
+            <div className="service-icon" style={{ color: '#4F5DFF' }}>
+              <span className="material-symbols-outlined" style={{fontSize: '24px'}}>security</span>
+            </div>
+            <h3>Active Sessions</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>
+              Login Info, Devices &amp; Security
+            </p>
+            <div className="service-open group">
+              <span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">
+                arrow_forward
+              </span>
+            </div>
+          </div>
+
           {/* Directory for Admin */}
           {userRole === 'admin' && (
             <div className="service-card admin-only" onClick={() => router.push('/admin/directory')} style={{ cursor: 'pointer' }}>
@@ -313,6 +338,10 @@ export default function Dashboard() {
             <span>Reports</span>
           </Link>
         )}
+        <Link href="/user/sessions" className="bottom-nav-item">
+          <span className="material-symbols-outlined">security</span>
+          <span>Sessions</span>
+        </Link>
         <Link href="#" className="bottom-nav-item">
           <span className="material-symbols-outlined">help</span>
           <span>Help</span>

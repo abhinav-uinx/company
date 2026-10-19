@@ -116,9 +116,73 @@ export async function logout() {
 }
 
 export async function terminateSession(sessionId: string) {
+    const session = await getSession();
+    if (!session) return { success: false, error: 'Unauthorized' };
     sessionCache.delete(sessionId);
-    const { error } = await supabaseAdmin.from('active_sessions').update({ is_active: false }).eq('id', sessionId);
+    let query = supabaseAdmin.from('active_sessions').update({ is_active: false }).eq('id', sessionId);
+    if (session.role !== 'admin') {
+      query = query.eq('username', session.username);
+    }
+    const { error } = await query;
     return { success: !error };
+}
+
+export async function getCurrentUserLoginInfo() {
+  const session = await getSession();
+  if (!session) return null;
+
+  const details: {
+    username: string;
+    role: string;
+    name: string;
+    email: string;
+    department: string;
+    job_title: string;
+    phone_number: string;
+    photo_url: string;
+    last_login: string | null;
+  } = {
+    username: (session.username as string) || '',
+    role: (session.role as string) || 'employee',
+    name: (session.name as string) || (session.username as string) || 'User',
+    email: '',
+    department: '',
+    job_title: '',
+    phone_number: '',
+    photo_url: '',
+    last_login: null,
+  };
+
+  try {
+    if (session.role === 'admin') {
+      const { data } = await supabaseAdmin.from('admins').select('*').eq('username', session.username).single();
+      if (data) {
+        details.name = data.name || details.name;
+        details.email = data.email || '';
+        details.photo_url = data.photo_url || '';
+        details.last_login = data.last_login || null;
+      }
+    } else {
+      let { data } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', session.username).single();
+      if (!data) {
+        const res = await supabaseAdmin.from('employees').select('*').eq('email', session.username).single();
+        data = res.data;
+      }
+      if (data) {
+        details.name = data.name || details.name;
+        details.email = data.email || '';
+        details.department = data.department || '';
+        details.job_title = data.job_title || '';
+        details.phone_number = data.phone_number || '';
+        details.photo_url = data.photo_url || '';
+        details.last_login = data.last_login || null;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return details;
 }
 
 export async function getActiveSessions() {
