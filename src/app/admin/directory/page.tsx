@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/app/admin/dashboard/header';
-import UserManagementPage from '@/app/admin/user/page';
+import UsersListPage from '@/app/admin/directory/users/page';
 import AttendancePage from '@/app/admin/directory/attendance/page';
 import SalaryPage from '@/app/admin/directory/salary/page';
 import AddEmployee from '@/app/admin/directory/add_employee/page';
@@ -89,7 +89,7 @@ export default function DirectoryPage() {
         </div>
 
         <div className="tab-pane">
-          {activeTab === 'users' && <UserManagementPage embedded />}
+          {activeTab === 'users' && <UsersListPage embedded />}
           {activeTab === 'customize' && <CustomizeFolderAccess embedded />}
           {activeTab === 'attendance' && <AttendancePage embedded />}
           {activeTab === 'salary' && <SalaryPage embedded />}

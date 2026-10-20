@@ -7,6 +7,7 @@ import { supabaseAuth } from '@/lib/supabase';
 import styles from '../customers.module.css';
 import LoadingIcon from '@/components/LoadingIcon';
 import { useAuth } from '@/components/AuthGuard';
+import { ServiceTypeSelector } from '../components';
 
 export default function CustomerDetail() {
   const params = useParams();
@@ -15,6 +16,8 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [serviceError, setServiceError] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [uploads, setUploads] = useState<any[]>([]);
@@ -29,12 +32,22 @@ export default function CustomerDetail() {
       const sRes = await supabaseAuth.from('services').select('*');
       
       if (sRes.data) setServices(sRes.data);
-      setCustomer(data);
+      if (data) {
+        setCustomer(data);
+        let initialServices: string[] = [];
+        if (Array.isArray(data.services) && data.services.length > 0) {
+          initialServices = data.services;
+        } else if (data.service) {
+          initialServices = [data.service];
+        }
+        setSelectedServices(initialServices);
+      }
       
-      const serviceObj = sRes.data?.find((s: any) => s.id === data.service);
+      const primaryServiceId = data?.service || (data?.services && data.services[0]);
+      const serviceObj = sRes.data?.find((s: any) => s.id === primaryServiceId);
       const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
       
-      if (bucket && data.passport && Array.isArray(data.passport)) {
+      if (bucket && data?.passport && Array.isArray(data.passport)) {
         const uploadsData = await Promise.all(data.passport.map(async (file: any) => {
           const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(file.path, 3600);
           return { name: file.name, type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path: file.path };
@@ -56,17 +69,42 @@ export default function CustomerDetail() {
     }
     
     setUploading(true);
-    const serviceObj = services.find((s: any) => s.id === customer.service);
-    const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+    // Find all buckets for selected services
+    const targetBuckets = new Set<string>();
+    selectedServices.forEach(sId => {
+      const sObj = services.find(s => s.id === sId);
+      if (sObj?.name === 'Medical Escort') targetBuckets.add('medical_escort');
+      if (sObj?.name === 'General Service') targetBuckets.add('general_service');
+    });
+    if (targetBuckets.size === 0) {
+      targetBuckets.add('medical_escort');
+    }
     
     for (const file of files) {
       const filePath = id + '/passport/' + file.name;
-      const { error } = await supabaseAuth.storage.from(bucket).upload(filePath, file, { upsert: true });
-      if (!error) {
-        const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(filePath, 3600);
-        setUploads(prev => [...prev, { name: file.name, type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', data: signed?.signedUrl, path: filePath }]);
+      let lastSignedUrl: string | null = null;
+      let uploadSuccess = false;
+
+      for (const bucket of Array.from(targetBuckets)) {
+        const { error } = await supabaseAuth.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (!error) {
+          uploadSuccess = true;
+          const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(filePath, 3600);
+          if (signed?.signedUrl) lastSignedUrl = signed.signedUrl;
+        } else {
+          console.warn(`Upload error in ${bucket}:`, error.message);
+        }
+      }
+
+      if (uploadSuccess) {
+        setUploads(prev => [...prev, {
+          name: file.name,
+          type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+          data: lastSignedUrl,
+          path: filePath
+        }]);
       } else {
-        alert('Error uploading: ' + error.message);
+        alert('Error uploading file. Please try again.');
       }
     }
     setUploading(false);
@@ -103,11 +141,10 @@ export default function CustomerDetail() {
   const removeUpload = async (index: number) => {
     const file = uploads[index];
     if (file && file.path) {
-      const serviceObj = services.find((s: any) => s.id === customer.service);
-      const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
-      if (bucket) {
-        await supabaseAuth.storage.from(bucket).remove([file.path]);
-      }
+      await Promise.allSettled([
+        supabaseAuth.storage.from('medical_escort').remove([file.path]),
+        supabaseAuth.storage.from('general_service').remove([file.path])
+      ]);
     }
     setUploads(prev => prev.filter((_, i) => i !== index));
   };
@@ -118,17 +155,36 @@ export default function CustomerDetail() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedServices.length === 0) {
+      setServiceError('Please select at least one service type.');
+      return;
+    }
+    setServiceError('');
     setSaving(true);
     setMsg({ text: '', type: '' });
     
     const cleanData = { ...customer };
-      delete (cleanData as any).passport_photo_url;
+    delete (cleanData as any).passport_photo_url;
     cleanData.passport = uploads.map(u => ({ name: u.name, path: u.path }));
     if (!cleanData.dob) delete (cleanData as any).dob;
     if (!cleanData.passport_expiry) delete (cleanData as any).passport_expiry;
     if (!cleanData.visa_expiry) delete (cleanData as any).visa_expiry;
 
-    const { error } = await supabaseAuth.from('customers').update(cleanData).eq('id', id);
+    // Multi-service support with backward compatibility:
+    // 1) services: JSONB array of UUIDs
+    // 2) service: primary service UUID for FK constraints
+    cleanData.services = selectedServices;
+    cleanData.service = selectedServices[0] || null;
+
+    let { error } = await supabaseAuth.from('customers').update(cleanData).eq('id', id);
+
+    // If 'services' column does not exist yet on Supabase DB, fallback to single 'service'
+    if (error && (error.message?.toLowerCase().includes('services') || (error as any).code === 'PGRST204' || (error as any).code === '42703')) {
+      const fallbackData = { ...cleanData };
+      delete (fallbackData as any).services;
+      const retryRes = await supabaseAuth.from('customers').update(fallbackData).eq('id', id);
+      error = retryRes.error;
+    }
 
     if (error) {
       setMsg({ text: 'Error updating: ' + error.message, type: 'error' });
@@ -142,7 +198,7 @@ export default function CustomerDetail() {
   if (loading) return <div className={styles.container}><LoadingIcon /></div>;
   if (!customer) return <div className={styles.container}>Customer not found.</div>;
 
-  const isGeneral = customer?.services && customer.services.some((id: string) => services.find(s => s.id === id)?.name === 'General Service');
+  const isGeneral = selectedServices.length > 0 && selectedServices.every((sId: string) => services.find(s => s.id === sId)?.name === 'General Service');
 
   return (
     <div className={styles.container}>
@@ -192,13 +248,15 @@ export default function CustomerDetail() {
           </div>
 
           <div className={styles.formSection}>Service Type</div>
-          <div className={styles.formGroup}>
-            <label>Select Service *</label>
-            <select name="service" required value={customer?.service || ''} onChange={handleChange}>
-              <option value="">-- Select Service --</option>
-              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
+          <ServiceTypeSelector
+            services={services}
+            selectedServiceIds={selectedServices}
+            onChange={(ids) => {
+              setSelectedServices(ids);
+              if (ids.length > 0) setServiceError('');
+            }}
+            error={serviceError}
+          />
 
 
           <div className={styles.formSection}>Passport & Visa Details</div>

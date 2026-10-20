@@ -5,6 +5,7 @@ import { getActiveSessions, terminateSession, getSession } from '@/app/actions/a
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingIcon from '@/components/LoadingIcon';
+import { UserTerminateSessionModal } from '../components';
 
 export default function UserSessionsPage() {
   const router = useRouter();
@@ -54,41 +55,12 @@ export default function UserSessionsPage() {
     <div style={{ padding: '30px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
       
       {/* Confirm Termination Modal */}
-      {showConfirmModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '14px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', marginBottom: '14px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>warning</span>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a', fontWeight: 700 }}>Terminate Session</h3>
-            </div>
-            <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>
-              Are you sure you want to terminate this session?
-              <br /><br />
-              {terminateId === currentSessionId ? (
-                <strong style={{ color: '#ef4444' }}>This will immediately log you out from your current device.</strong>
-              ) : (
-                <span>This device will be immediately signed out and require login credentials again.</span>
-              )}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowConfirmModal(false)}
-                style={{ padding: '8px 16px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmTerminate}
-                style={{ padding: '8px 18px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span> Terminate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UserTerminateSessionModal
+        isOpen={showConfirmModal}
+        isCurrentSession={terminateId === currentSessionId}
+        onCancel={() => setShowConfirmModal(false)}
+        onConfirm={confirmTerminate}
+      />
 
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>

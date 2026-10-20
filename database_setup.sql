@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     doctor_reports_urls JSONB DEFAULT '[]'::jsonb,
     iqama_number TEXT,
     service UUID REFERENCES public.services(id) ON DELETE SET NULL,
+    services JSONB DEFAULT '[]'::jsonb,
     passport JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -198,14 +199,15 @@ CREATE TABLE IF NOT EXISTS public.medif_records (
 
 -- 15. Employee Attendance Table
 CREATE TABLE IF NOT EXISTS public.employee_attendance (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_iqama TEXT NOT NULL,
+    employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     check_in TIME,
     check_out TIME,
     status TEXT DEFAULT 'Present', -- 'Present', 'Absent', 'Leave', 'Half-day'
     leave_type TEXT,
-    UNIQUE(employee_iqama, date)
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_employee_attendance PRIMARY KEY (employee_id, date)
 );
 
 -- 16. Employee Salaries Table
@@ -225,6 +227,7 @@ CREATE TABLE IF NOT EXISTS public.employee_salaries (
 -- PERFORMANCE INDEXES (Optimizes query speeds & eliminates delays)
 -- =========================================================================
 CREATE INDEX IF NOT EXISTS idx_customers_service ON public.customers(service);
+CREATE INDEX IF NOT EXISTS idx_customers_services ON public.customers USING gin(services);
 CREATE INDEX IF NOT EXISTS idx_customers_created_at ON public.customers(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customers_passport ON public.customers(passport_no);
 
@@ -239,5 +242,6 @@ CREATE INDEX IF NOT EXISTS idx_payment_history_invoice ON public.payment_history
 CREATE INDEX IF NOT EXISTS idx_active_sessions_username ON public.active_sessions(username);
 CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON public.active_sessions(id, is_active);
 
+CREATE INDEX IF NOT EXISTS idx_attendance_employee_id_date ON public.employee_attendance(employee_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_attendance_iqama_date ON public.employee_attendance(employee_iqama, date DESC);
 CREATE INDEX IF NOT EXISTS idx_salaries_iqama_month ON public.employee_salaries(employee_iqama, month);

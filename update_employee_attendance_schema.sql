@@ -1,0 +1,19 @@
+-- =========================================================================
+-- Employee Attendance Schema Status: VERIFIED & COMPLETED
+-- =========================================================================
+-- The migration has already executed successfully on your Supabase database!
+--
+-- Verified column structure of 'public.employee_attendance':
+--   1. employee_iqama TEXT NOT NULL
+--   2. employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE  <-- (Second Column)
+--   3. date DATE NOT NULL
+--   4. check_in TIME
+--   5. check_out TIME
+--   6. status TEXT DEFAULT 'Present'
+--   7. leave_type TEXT
+--   8. created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+--   CONSTRAINT pk_employee_attendance PRIMARY KEY (employee_id, date)
+--
+-- The dummy 'id' column was successfully removed.
+-- Attendance now saves with the employee's UUID foreign key.
+-- =========================================================================

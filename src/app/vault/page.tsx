@@ -5,6 +5,7 @@ import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthGuard';
 import LoadingIcon from '@/components/LoadingIcon';
+import { CustomerDossierModal, NurseDetailsModal, FullscreenFileViewer } from './components';
 
 export default function Vault() {
   const { role, isFolderAllowed } = useAuth();
@@ -118,11 +119,40 @@ export default function Vault() {
     fetchAllVaultData();
   }, []);
 
+  // Modal accessibility: background scroll lock and Escape key dismiss
+  useEffect(() => {
+    if (selectedCustomer || selectedNurse || fullscreenFile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (fullscreenFile) setFullscreenFile(null);
+        else if (selectedNurse) setSelectedNurse(null);
+        else if (selectedCustomer) setSelectedCustomer(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedCustomer, selectedNurse, fullscreenFile]);
+
+
+
   // Process Customers with Invoices, Payments, Missions, and Assigned Nurse
   const processedCustomers = useMemo(() => {
     return customers.map(cust => {
-      const serviceObj = services.find(s => s.id === cust.service);
-      const serviceName = serviceObj?.name || 'Unassigned';
+      const custServicesList: string[] = Array.isArray(cust.services) && cust.services.length > 0
+        ? cust.services.map((id: string) => services.find(s => s.id === id)?.name).filter(Boolean)
+        : [services.find(s => s.id === cust.service)?.name].filter(Boolean);
+      const serviceName = custServicesList.length > 0 ? custServicesList.join(', ') : 'Unassigned';
+      const hasMedical = custServicesList.some((s: string) => s.toLowerCase().includes('medical'));
+      const hasGeneral = custServicesList.some((s: string) => s.toLowerCase().includes('general'));
 
       // Customer Invoices
       const custInvoices = invoices.filter(inv => inv.customer_id === cust.id);
@@ -180,6 +210,9 @@ export default function Vault() {
       return {
         ...cust,
         serviceName,
+        servicesList: custServicesList,
+        hasMedical,
+        hasGeneral,
         custInvoices,
         custPayments,
         totalAmount,
@@ -213,8 +246,8 @@ export default function Vault() {
 
       // Service filter
       const matchService = serviceFilter === 'all' ||
-        (serviceFilter === 'escort' && c.serviceName === 'Medical Escort') ||
-        (serviceFilter === 'general' && c.serviceName !== 'Medical Escort');
+        (serviceFilter === 'escort' && c.hasMedical) ||
+        (serviceFilter === 'general' && c.hasGeneral);
 
       // Payment filter
       const matchPayment = paymentFilter === 'all' || c.paymentStatus === paymentFilter;
@@ -231,15 +264,24 @@ export default function Vault() {
     setCustomerPassports([]);
 
     try {
-      const bucket = cust.serviceName === 'Medical Escort' ? 'medical_escort' : 'general_service';
-      if (bucket && cust.passport && Array.isArray(cust.passport) && cust.passport.length > 0) {
+      const bucket = cust.hasMedical ? 'medical_escort' : 'general_service';
+      if (cust.passport && Array.isArray(cust.passport) && cust.passport.length > 0) {
         const filesData = await Promise.all(
           cust.passport.map(async (file: any) => {
-            const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(file.path, 3600);
+            let signedUrl = null;
+            if (bucket) {
+              const { data: signed } = await supabaseAuth.storage.from(bucket).createSignedUrl(file.path, 3600);
+              if (signed?.signedUrl) signedUrl = signed.signedUrl;
+            }
+            if (!signedUrl) {
+              const altBucket = bucket === 'medical_escort' ? 'general_service' : 'medical_escort';
+              const { data: altSigned } = await supabaseAuth.storage.from(altBucket).createSignedUrl(file.path, 3600);
+              signedUrl = altSigned?.signedUrl;
+            }
             return {
               name: file.name || 'Passport Document',
               type: (file.name || '').toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-              url: signed?.signedUrl || '',
+              url: signedUrl || '',
               path: file.path
             };
           })
@@ -387,26 +429,331 @@ export default function Vault() {
         .view-action-btn:hover { background: #3b49e0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 93, 255, 0.35); }
 
         /* Modal Backdrop & Container */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(5px); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .modal-card { background: #ffffff; border-radius: 20px; width: 100%; max-width: 950px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: zoomIn 0.2s ease-out; }
-        @keyframes zoomIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-        
-        .modal-header { padding: 20px 28px; background: linear-gradient(135deg, #0B1220 0%, #1E293B 100%); color: #ffffff; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-        .modal-body { padding: 28px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 24px; background: #f8fafc; }
-        .modal-section { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-        .section-title { font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; margin: 0 0 16px 0; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; }
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-        .info-item { display: flex; flex-direction: column; gap: 2px; }
-        .info-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-        .info-val { font-size: 14px; font-weight: 600; color: #0f172a; word-break: break-word; }
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.7);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          z-index: 99999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          animation: modalFadeIn 0.2s ease-out;
+        }
+        @keyframes modalFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .modal-card {
+          background: #ffffff;
+          border-radius: 20px;
+          width: 100%;
+          max-width: 980px;
+          height: 90vh;
+          max-height: 860px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+          animation: modalZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+          position: relative;
+        }
+        @keyframes modalZoomIn {
+          from { opacity: 0; transform: scale(0.97) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes zoomIn {
+          from { opacity: 0; transform: scale(0.97) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+          padding: 18px 26px;
+          background: linear-gradient(135deg, #0B1220 0%, #172338 100%);
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Sticky Subnav Bar with Tabs */
+        .modal-subnav {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          background: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 8px 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-shrink: 0;
+          box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+        }
+        .subnav-tabs {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow-x: auto;
+          white-space: nowrap;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          padding: 2px 0;
+          width: 100%;
+        }
+        .subnav-tabs::-webkit-scrollbar {
+          display: none;
+        }
+        .subnav-tab-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          background: transparent;
+          border: 1px solid transparent;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          user-select: none;
+          flex-shrink: 0;
+        }
+        .subnav-tab-btn:hover {
+          color: #0f172a;
+          background: #f1f5f9;
+        }
+        .subnav-tab-btn.active {
+          color: #4F5DFF;
+          background: #EEF1FF;
+          border-color: #c7d2fe;
+        }
+        .subnav-tab-btn .material-symbols-outlined {
+          font-size: 16px;
+        }
+        .subnav-tab-badge {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 999px;
+          background: #e2e8f0;
+          color: #475569;
+        }
+        .subnav-tab-btn.active .subnav-tab-badge {
+          background: #4F5DFF;
+          color: #ffffff;
+        }
+
+        /* Modal Body & Custom Professional Scrollbar */
+        .modal-body {
+          padding: 22px 28px 48px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          background: #f8fafc;
+          scroll-behavior: smooth;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+          position: relative;
+        }
+        .modal-body::-webkit-scrollbar {
+          width: 7px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+          background: transparent;
+          margin: 6px 0;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 999px;
+          border: 1px solid #f8fafc;
+        }
+        .modal-body::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+
+        /* Refined Human-Crafted Cards */
+        .modal-section {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 20px 22px;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+          transition: border-color 0.15s ease;
+          scroll-margin-top: 10px;
+        }
+        .modal-section:hover {
+          border-color: #cbd5e1;
+        }
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .section-header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .section-icon-box {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid;
+          flex-shrink: 0;
+        }
+        .section-icon-box .material-symbols-outlined {
+          font-size: 20px;
+        }
+        .section-title-wrap {
+          display: flex;
+          flex-direction: column;
+        }
+        .section-main-title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 700;
+          color: #0f172a;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .section-sub-desc {
+          margin: 2px 0 0 0;
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        /* Financial KPI Grid */
+        .financial-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .kpi-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 12px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .kpi-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .kpi-value {
+          font-size: 17px;
+          font-weight: 700;
+        }
+        .text-slate { color: #0f172a; }
+        .text-emerald { color: #059669; }
+        .text-rose { color: #e11d48; }
+
+        /* General Info Grid */
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+        }
+        .info-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          background: #f8fafc;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid #f1f5f9;
+        }
+        .info-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .info-val {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #0f172a;
+          word-break: break-word;
+        }
+        .info-val.mono {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          letter-spacing: 0.02em;
+        }
+
+        /* Floating Back to Top Button */
+        .back-to-top-btn {
+          position: absolute;
+          bottom: 24px;
+          right: 24px;
+          z-index: 40;
+          background: #0f172a;
+          color: #ffffff;
+          border: none;
+          border-radius: 999px;
+          padding: 8px 14px;
+          font-size: 12px;
+          font-weight: 600;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+          animation: modalFadeIn 0.2s ease;
+          transition: transform 0.15s ease, background 0.15s ease;
+        }
+        .back-to-top-btn:hover {
+          background: #1e293b;
+          transform: translateY(-2px);
+        }
+
+        /* Modal Footer */
+        .modal-footer {
+          padding: 14px 26px;
+          background: #ffffff;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-shrink: 0;
+          box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.04);
+        }
 
         /* Media queries */
         @media (max-width: 768px) {
           .vault-page { padding: 20px 12px; }
-          .modal-card { max-height: 95vh; }
-          .modal-header { padding: 16px 20px; }
-          .modal-body { padding: 18px 14px; }
+          .modal-card { max-height: 95vh; height: 95vh; border-radius: 14px; }
+          .modal-header { padding: 14px 18px; }
+          .modal-subnav { padding: 8px 14px; }
+          .modal-body { padding: 16px 14px 36px; }
+          .modal-footer { padding: 12px 16px; flex-direction: column; gap: 10px; align-items: stretch; }
           .info-grid { grid-template-columns: 1fr; }
+          .financial-kpi-grid { grid-template-columns: 1fr 1fr; }
         }
       `}} />
 
@@ -537,9 +884,30 @@ export default function Vault() {
 
                         {/* 4. Service */}
                         <td>
-                          <span className="badge badge-service">
-                            {customer.serviceName}
-                          </span>
+                          {customer.servicesList && customer.servicesList.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {customer.servicesList.map((sName: string, sIdx: number) => {
+                                const isMed = sName.toLowerCase().includes('medical');
+                                return (
+                                  <span
+                                    key={sIdx}
+                                    className="badge badge-service"
+                                    style={{
+                                      background: isMed ? '#eef2ff' : '#f0f9ff',
+                                      color: isMed ? '#4338ca' : '#0369a1',
+                                      borderColor: isMed ? '#c7d2fe' : '#bae6fd'
+                                    }}
+                                  >
+                                    {sName}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="badge badge-service">
+                              {customer.serviceName}
+                            </span>
+                          )}
                         </td>
 
                         {/* 5. Payment Info */}
@@ -593,690 +961,34 @@ export default function Vault() {
         </div>
       </main>
 
-      {/* ======================================================== */}
-      {/* COMPREHENSIVE VIEW CUSTOMER DOSSIER MODAL ("ALL MEANS ALL") */}
-      {/* ======================================================== */}
+      {/* Customer Dossier Modal */}
       {selectedCustomer && (
-        <div className="modal-overlay" onClick={() => setSelectedCustomer(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #4F5DFF 0%, #6366F1 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '20px', fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(79, 93, 255, 0.4)'
-                }}>
-                  {(selectedCustomer.name || 'C').charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{selectedCustomer.name}</h2>
-                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 600 }}>
-                      {selectedCustomer.serviceName}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '2px' }}>
-                    Customer ID: {selectedCustomer.id} &middot; Created on {new Date(selectedCustomer.created_at || Date.now()).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedCustomer(null)}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="modal-body">
-
-              {/* 1. FINANCIAL & PAYMENT INFO */}
-              <div className="modal-section" style={{ borderLeft: '4px solid #10b981' }}>
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#10b981' }}>payments</span>
-                  Payment &amp; Invoicing Details
-                </div>
-
-                <div className="info-grid" style={{ marginBottom: '16px' }}>
-                  <div className="info-item">
-                    <span className="info-label">Payment Status</span>
-                    <span className="info-val">
-                      <span className={`badge ${selectedCustomer.paymentStatus === 'Paid' ? 'badge-paid' : selectedCustomer.paymentStatus === 'Partially Paid' ? 'badge-partial' : selectedCustomer.paymentStatus === 'Unpaid' ? 'badge-unpaid' : 'badge-noinv'}`}>
-                        {selectedCustomer.paymentStatus}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Total Invoiced</span>
-                    <span className="info-val" style={{ color: '#0f172a', fontSize: '16px' }}>
-                      ${selectedCustomer.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Advance / Paid Amount</span>
-                    <span className="info-val" style={{ color: '#10b981', fontSize: '16px' }}>
-                      ${selectedCustomer.totalAdvance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Remaining Balance</span>
-                    <span className="info-val" style={{ color: selectedCustomer.totalBalance > 0 ? '#ef4444' : '#10b981', fontSize: '16px' }}>
-                      ${selectedCustomer.totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Invoices List */}
-                {selectedCustomer.custInvoices && selectedCustomer.custInvoices.length > 0 ? (
-                  <div style={{ marginTop: '14px', background: '#f8fafc', borderRadius: '10px', padding: '14px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
-                      Invoices Generated ({selectedCustomer.custInvoices.length}):
-                    </div>
-                    {selectedCustomer.custInvoices.map((inv: any, idx: number) => (
-                      <div key={inv.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: idx !== selectedCustomer.custInvoices.length - 1 ? '1px solid #e2e8f0' : 'none', fontSize: '13px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div>
-                          <strong>Invoice #{inv.id.substring(0, 8)}</strong> &middot;{' '}
-                          <span style={{ color: '#64748b' }}>{new Date(inv.created_at).toLocaleDateString()}</span>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>
-                            Subtotal: ${inv.subtotal} | Tax/VAT: {inv.tax_vat_percent}% | Disc: ${inv.discount}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>Total: ${inv.total_amount}</span>{' '}
-                          <span style={{ color: '#64748b' }}>(Bal: ${inv.balance_amount})</span>
-                          <Link href={`/invoices/${inv.id}`} style={{ marginLeft: '10px', color: '#4F5DFF', textDecoration: 'none', fontWeight: 600 }}>
-                            View Bill &rarr;
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', color: '#64748b', fontStyle: 'italic' }}>
-                    No invoice generated yet for this customer.
-                  </div>
-                )}
-
-                {/* Logged Payment Transactions */}
-                {selectedCustomer.custPayments && selectedCustomer.custPayments.length > 0 && (
-                  <div style={{ marginTop: '14px', background: '#ecfdf5', borderRadius: '10px', padding: '14px', border: '1px solid #a7f3d0' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#065f46', marginBottom: '8px' }}>
-                      Payment Receipts / History ({selectedCustomer.custPayments.length}):
-                    </div>
-                    {selectedCustomer.custPayments.map((p: any, idx: number) => (
-                      <div key={p.id || idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0', color: '#065f46' }}>
-                        <span>
-                          <strong>${p.amount}</strong> &middot; {p.payment_method || 'Direct'} &middot; {p.remarks || 'Receipt logged'}
-                        </span>
-                        <span>{new Date(p.payment_date || Date.now()).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 3. PRIMARY IDENTITY & CONTACT ("NAME, IQAMA, PASSPORT NO FIRST") */}
-              <div className="modal-section" style={{ borderLeft: '4px solid #4F5DFF' }}>
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>badge</span>
-                  Personal &amp; Identity Information
-                </div>
-
-                <div className="info-grid">
-                  <div className="info-item">
-                    <span className="info-label">Full Name</span>
-                    <span className="info-val">{selectedCustomer.name || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Iqama Number</span>
-                    <span className="info-val" style={{ fontFamily: 'monospace' }}>
-                      {selectedCustomer.iqama_number || 'N/A'}
-                    </span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Passport Number</span>
-                    <span className="info-val">{selectedCustomer.passport_no || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Passport Expiry</span>
-                    <span className="info-val">{selectedCustomer.passport_expiry || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Nationality</span>
-                    <span className="info-val">{selectedCustomer.nationality || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Date of Birth (DOB)</span>
-                    <span className="info-val">{selectedCustomer.dob || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Contact Phone</span>
-                    <span className="info-val">{selectedCustomer.contact_number || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Email Address</span>
-                    <span className="info-val">{selectedCustomer.email || 'N/A'}</span>
-                  </div>
-                  <div className="info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="info-label">Current Address</span>
-                    <span className="info-val">{selectedCustomer.address || 'N/A'}</span>
-                  </div>
-                  <div className="info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="info-label">Origin / Home Country Address</span>
-                    <span className="info-val">{selectedCustomer.origin_address || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. VISA & IMMIGRATION DETAILS */}
-              <div className="modal-section">
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#8b5cf6' }}>flight</span>
-                  Visa &amp; Travel Documentation
-                </div>
-
-                <div className="info-grid">
-                  <div className="info-item">
-                    <span className="info-label">Visa Number</span>
-                    <span className="info-val">{selectedCustomer.visa_no || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Visa Type</span>
-                    <span className="info-val">{selectedCustomer.visa_type || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Visa Country</span>
-                    <span className="info-val">{selectedCustomer.visa_country || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Visa Expiry</span>
-                    <span className="info-val">{selectedCustomer.visa_expiry || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 5. EMERGENCY CONTACTS */}
-              <div className="modal-section">
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>emergency</span>
-                  Emergency Contacts
-                </div>
-
-                <div className="info-grid">
-                  <div className="info-item">
-                    <span className="info-label">Emergency Contact Name</span>
-                    <span className="info-val">{selectedCustomer.emergency_contact_name || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Emergency Phone Number</span>
-                    <span className="info-val">{selectedCustomer.emergency_contact_phone || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. MEDICAL INFORMATION */}
-              <div className="modal-section">
-                <div className="section-title">
-                  <span className="material-symbols-outlined" style={{ color: '#ef4444' }}>medical_services</span>
-                  Medical &amp; Clinical Information
-                </div>
-
-                <div className="info-grid">
-                  <div className="info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="info-label">Current Hospital</span>
-                    <span className="info-val">{selectedCustomer.current_hospital || 'Not Specified'}</span>
-                  </div>
-                  <div className="info-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="info-label">Medical Condition / Diagnosis</span>
-                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px', fontSize: '13px', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
-                      {selectedCustomer.medical_condition || 'No clinical condition specified.'}
-                    </div>
-                  </div>
-                  {selectedCustomer.fitness_to_fly_url && (
-                    <div className="info-item" style={{ gridColumn: 'span 2' }}>
-                      <span className="info-label">Fitness To Fly Document</span>
-                      <a href={selectedCustomer.fitness_to_fly_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>
-                        Open Fitness to Fly Document &rarr;
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 7. ESCORT MISSIONS & OPERATIONAL SERVICE DATA */}
-              {selectedCustomer.custMissions && selectedCustomer.custMissions.length > 0 && (
-                <div className="modal-section">
-                  <div className="section-title">
-                    <span className="material-symbols-outlined" style={{ color: '#0284c7' }}>connecting_airports</span>
-                    Escort Missions &amp; Flight Records ({selectedCustomer.custMissions.length})
-                  </div>
-
-                  {selectedCustomer.custMissions.map((m: any, idx: number) => (
-                    <div key={m.id || idx} style={{ background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
-                      <div className="info-grid">
-                        <div className="info-item">
-                          <span className="info-label">Route</span>
-                          <span className="info-val">{m.from_country} &rarr; {m.to_country}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Layover</span>
-                          <span className="info-val">{m.layover_country || 'Direct'}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Flight &amp; Airline</span>
-                          <span className="info-val">{m.airline} {m.flight_no}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">PNR &amp; Date</span>
-                          <span className="info-val">{m.pnr || 'N/A'} ({m.flight_date || 'N/A'})</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Status</span>
-                          <span className="info-val"><strong style={{ color: '#0284c7' }}>{m.status}</strong></span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Assigned Escort (Iqama)</span>
-                          <span className="info-val">{m.escort_employee_iqama || 'Unassigned'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 7. ATTACHED DOCUMENTS: VAULT FILES, PASSPORTS & MEDIF FORMS */}
-              <div className="modal-section" style={{ borderLeft: '4px solid #4F5DFF' }}>
-                <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>folder_shared</span>
-                    Vault Files &amp; Passports
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Link
-                      href="/forms"
-                      target="_blank"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        color: '#0284c7',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        background: '#e0f2fe',
-                        padding: '5px 10px',
-                        borderRadius: '6px'
-                      }}
-                      title="Open airline MEDIF template forms hub"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>download</span>
-                      Airline MEDIF Templates
-                    </Link>
-
-                    <label
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: '#0284c7',
-                        color: '#fff',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        padding: '5px 12px',
-                        borderRadius: '6px',
-                        cursor: uploadingMedif ? 'wait' : 'pointer',
-                        opacity: uploadingMedif ? 0.7 : 1
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {uploadingMedif ? 'sync' : 'upload_file'}
-                      </span>
-                      {uploadingMedif ? 'Uploading...' : 'Upload MEDIF Form'}
-                      <input
-                        type="file"
-                        accept=".pdf,image/*"
-                        disabled={uploadingMedif}
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            handleUploadMedif(e.target.files[0], selectedCustomer.id);
-                          }
-                        }}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Sub-section A: MEDIF Forms */}
-                <div style={{ marginBottom: '22px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#0284c7' }}>assignment_late</span>
-                    MEDIF Forms ({selectedCustomer.medifFiles ? selectedCustomer.medifFiles.length : 0})
-                  </div>
-
-                  {selectedCustomer.medifFiles && selectedCustomer.medifFiles.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {selectedCustomer.medifFiles.map((file: any, idx: number) => (
-                        <div
-                          key={file.path || idx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            background: '#f0f9ff',
-                            border: '1px solid #bae6fd',
-                            borderRadius: '10px',
-                            padding: '10px 14px',
-                            flexWrap: 'wrap',
-                            gap: '10px'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{
-                              width: '36px', height: '36px', borderRadius: '8px',
-                              background: '#fef2f2', border: '1px solid #fecaca',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: '#dc2626', flexShrink: 0
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>picture_as_pdf</span>
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
-                                {file.name}
-                              </div>
-                              <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '8px' }}>
-                                {file.size ? <span>{(file.size / 1024).toFixed(1)} KB</span> : null}
-                                {file.updated_at ? <span>Uploaded on {new Date(file.updated_at).toLocaleDateString()}</span> : null}
-                                <span style={{ color: '#0284c7', fontWeight: 600 }}>Airline MEDIF</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setFullscreenFile(file)}
-                              style={{
-                                background: '#0284c7', color: '#fff', border: 'none',
-                                padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
-                                fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
-                                alignItems: 'center', gap: '4px'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
-                              Preview
-                            </button>
-
-                            <a
-                              href={file.url}
-                              download={file.name}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                background: '#fff', color: '#334155', border: '1px solid #cbd5e1',
-                                padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
-                                fontWeight: 600, textDecoration: 'none', display: 'inline-flex',
-                                alignItems: 'center', gap: '4px'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>download</span>
-                              Download
-                            </a>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMedif(file.path, selectedCustomer.id, file.bucket || 'medical_escort')}
-                              style={{
-                                background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca',
-                                padding: '5px 8px', borderRadius: '6px', fontSize: '12px',
-                                fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
-                                alignItems: 'center'
-                              }}
-                              title="Delete MEDIF file"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '12px', color: '#64748b' }}>
-                      No MEDIF form uploaded yet. Use the &quot;Upload MEDIF Form&quot; button above to attach one.
-                    </div>
-                  )}
-                </div>
-
-                {/* Sub-section B: Customer Passports */}
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#4F5DFF' }}>badge</span>
-                    Customer Passports ({customerPassports.length})
-                  </div>
-
-                  {loadingPassports ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading passport files...</div>
-                  ) : customerPassports.length > 0 ? (
-                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                      {customerPassports.map((file, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => setFullscreenFile(file)}
-                          style={{
-                            width: '130px', height: '160px', background: '#fff', border: '1px solid #cbd5e1',
-                            borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', display: 'flex',
-                            flexDirection: 'column', boxShadow: '0 2px 5px rgba(0,0,0,0.06)', transition: 'transform 0.2s'
-                          }}
-                        >
-                          <div style={{ flex: 1, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {file.type.includes('image') ? (
-                              <img src={file.url} alt="Passport preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#ef4444' }}>picture_as_pdf</span>
-                            )}
-                          </div>
-                          <div style={{ padding: '6px 8px', fontSize: '11px', textAlign: 'center', fontWeight: 600, color: '#334155', borderTop: '1px solid #e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {file.name}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '13px' }}>
-                      No passport files uploaded in storage for this customer.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: '16px 28px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '12px', color: '#64748b' }}>
-                All details verified &amp; synced from database
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <Link
-                  href={`/customers/${selectedCustomer.id}`}
-                  style={{ background: '#fff', border: '1px solid #cbd5e1', color: '#334155', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span> Edit Customer
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCustomer(null)}
-                  style={{ background: '#0B1220', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CustomerDossierModal
+          selectedCustomer={selectedCustomer}
+          customerPassports={customerPassports}
+          loadingPassports={loadingPassports}
+          uploadingMedif={uploadingMedif}
+          onClose={() => setSelectedCustomer(null)}
+          onPreviewFile={setFullscreenFile}
+          onUploadMedif={handleUploadMedif}
+          onDeleteMedif={handleDeleteMedif}
+        />
       )}
 
-      {/* ======================================================== */}
-      {/* NURSE DETAILS MODAL (POPUP ON CLICKING NURSE NAME/IQAMA) */}
-      {/* ======================================================== */}
+      {/* Nurse Details Modal */}
       {selectedNurse && (
-        <div className="modal-overlay" onClick={() => setSelectedNurse(null)}>
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: '20px',
-              width: '100%',
-              maxWidth: '520px',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              animation: 'zoomIn 0.2s ease-out'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header Banner */}
-            <div style={{
-              padding: '26px 28px',
-              background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)',
-              color: '#ffffff',
-              position: 'relative'
-            }}>
-              <button
-                type="button"
-                onClick={() => setSelectedNurse(null)}
-                style={{
-                  position: 'absolute', top: '16px', right: '16px',
-                  background: 'rgba(255,255,255,0.15)', border: 'none',
-                  width: '32px', height: '32px', borderRadius: '50%',
-                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                  width: '68px', height: '68px', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '28px', fontWeight: 800, color: '#fff',
-                  boxShadow: '0 6px 16px rgba(0, 0, 0, 0.25)',
-                  border: '3px solid rgba(255, 255, 255, 0.4)',
-                  overflow: 'hidden', flexShrink: 0
-                }}>
-                  {selectedNurse.photo_url ? (
-                    <img src={selectedNurse.photo_url} alt={selectedNurse.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    (selectedNurse.name || 'N').charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>{selectedNurse.name}</h3>
-                    <span style={{
-                      background: 'rgba(255, 255, 255, 0.2)', color: '#a7f3d0',
-                      padding: '2px 8px', borderRadius: '999px', fontSize: '11px',
-                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em'
-                    }}>
-                      {selectedNurse.status || 'Active'}
-                    </span>
-                  </div>
-                  <p style={{ margin: '4px 0 0 0', color: '#a7f3d0', fontSize: '13px', fontWeight: 500 }}>
-                    {selectedNurse.job_title || 'Flight Nurse / Medical Escort'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Nurse Info List */}
-            <div style={{ padding: '24px 28px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: '#ffffff', borderRadius: '14px', padding: '18px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Iqama / Civil ID</span>
-                  <span style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'monospace', color: '#0f172a' }}>
-                    {selectedNurse.iqama_number || 'N/A'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Department</span>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                    {selectedNurse.department || 'Clinical Operations / Nursing'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Contact Phone</span>
-                  {selectedNurse.phone_number ? (
-                    <a href={`tel:${selectedNurse.phone_number}`} style={{ fontSize: '14px', fontWeight: 700, color: '#059669', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>call</span>
-                      {selectedNurse.phone_number}
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: '14px', color: '#94a3b8' }}>Not Provided</span>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Email Address</span>
-                  {selectedNurse.email ? (
-                    <a href={`mailto:${selectedNurse.email}`} style={{ fontSize: '14px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>mail</span>
-                      {selectedNurse.email}
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: '14px', color: '#94a3b8' }}>Not Provided</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{ padding: '16px 28px', background: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedNurse(null)}
-                style={{
-                  background: '#064e3b', color: '#ffffff', border: 'none',
-                  padding: '9px 24px', borderRadius: '8px', fontSize: '13px',
-                  fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                Close Profile
-              </button>
-            </div>
-          </div>
-        </div>
+        <NurseDetailsModal
+          selectedNurse={selectedNurse}
+          onClose={() => setSelectedNurse(null)}
+        />
       )}
 
       {/* Fullscreen File Viewer */}
       {fullscreenFile && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 999999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '100%', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'absolute', top: 0, color: '#fff' }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>{fullscreenFile.name}</h3>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <a href={fullscreenFile.url} download={fullscreenFile.name} target="_blank" rel="noreferrer" style={{ background: '#2563eb', color: '#fff', padding: '6px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>download</span> Download
-              </a>
-              <button onClick={() => setFullscreenFile(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px' }}>
-                &times;
-              </button>
-            </div>
-          </div>
-
-          <div style={{ width: '90%', height: '80%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '40px' }}>
-            {fullscreenFile.type.includes('image') ? (
-              <img src={fullscreenFile.url} alt="Fullscreen preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-            ) : (
-              <iframe src={fullscreenFile.url} style={{ width: '100%', height: '100%', border: 'none', background: '#fff', borderRadius: '8px' }} title="PDF Preview" />
-            )}
-          </div>
-        </div>
+        <FullscreenFileViewer
+          file={fullscreenFile}
+          onClose={() => setFullscreenFile(null)}
+        />
       )}
     </>
   );

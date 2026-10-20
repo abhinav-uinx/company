@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from '../customers.module.css';
+import { ServiceTypeSelector } from '../components';
 
 export default function AddCustomer() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [services, setServices] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [serviceError, setServiceError] = useState('');
 
   const [uploads, setUploads] = useState<File[]>([]);
 
@@ -62,6 +65,11 @@ export default function AddCustomer() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedServices.length === 0) {
+      setServiceError('Please select at least one service type.');
+      return;
+    }
+    setServiceError('');
     setLoading(true);
     setMsg({ text: '', type: '' });
 
@@ -72,7 +80,18 @@ export default function AddCustomer() {
       if (!cleanData.passport_expiry) delete cleanData.passport_expiry;
       if (!cleanData.visa_expiry) delete cleanData.visa_expiry;
 
-      const { data: newCustomer, error } = await supabaseAuth.from('customers').insert([cleanData]).select().single();
+      // Multi-service support: save array in 'services' and primary in 'service'
+      cleanData.services = selectedServices;
+      cleanData.service = selectedServices[0] || null;
+
+      let insertRes = await supabaseAuth.from('customers').insert([cleanData]).select().single();
+      if (insertRes.error && (insertRes.error.message?.toLowerCase().includes('services') || (insertRes.error as any).code === 'PGRST204' || (insertRes.error as any).code === '42703')) {
+        const fallbackData = { ...cleanData };
+        delete fallbackData.services;
+        insertRes = await supabaseAuth.from('customers').insert([fallbackData]).select().single();
+      }
+
+      const { data: newCustomer, error } = insertRes;
 
       if (error) {
         setMsg({ text: 'Error adding customer: ' + error.message, type: 'error' });
@@ -80,34 +99,39 @@ export default function AddCustomer() {
         return;
       }
 
-      // Automatically create the folder structure and upload passport files to the storage bucket
-      const serviceObj = services.find(s => s.id === formData.service);
-      const bucket = serviceObj?.name === 'Medical Escort' ? 'medical_escort' : 'general_service';
+      // Automatically create the folder structure and upload passport files to the storage bucket(s)
+      const selectedServiceObjects = services.filter(s => selectedServices.includes(s.id));
+      const bucketsToSync = Array.from(new Set(
+        selectedServiceObjects.map(s => s.name === 'Medical Escort' ? 'medical_escort' : 'general_service')
+      ));
+      if (bucketsToSync.length === 0) bucketsToSync.push('general_service');
 
-      if (bucket && newCustomer) {
-        const emptyBlob = new Blob([' '], { type: 'text/plain' });
-        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/passport/.keep`, emptyBlob, { upsert: true });
-        await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/ticket/.keep`, emptyBlob, { upsert: true });
-
-        // Upload any selected passport images/PDFs
+      if (newCustomer) {
         const uploadedPassportMeta: Array<{ name: string; path: string }> = [];
 
-        for (const file of uploads) {
-          const filePath = `${newCustomer.id}/passport/${file.name}`;
-          const { error: uploadError } = await supabaseAuth.storage
-            .from(bucket)
-            .upload(filePath, file, {
-              contentType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
-              upsert: true
-            });
+        for (const bucket of bucketsToSync) {
+          const emptyBlob = new Blob([' '], { type: 'text/plain' });
+          await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/passport/.keep`, emptyBlob, { upsert: true });
+          await supabaseAuth.storage.from(bucket).upload(`${newCustomer.id}/ticket/.keep`, emptyBlob, { upsert: true });
 
-          if (!uploadError) {
-            uploadedPassportMeta.push({
-              name: file.name,
-              path: filePath
-            });
-          } else {
-            console.error('Passport file upload error:', file.name, uploadError);
+          // Upload any selected passport images/PDFs
+          for (const file of uploads) {
+            const filePath = `${newCustomer.id}/passport/${file.name}`;
+            const { error: uploadError } = await supabaseAuth.storage
+              .from(bucket)
+              .upload(filePath, file, {
+                contentType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+                upsert: true
+              });
+
+            if (!uploadError && !uploadedPassportMeta.some(m => m.name === file.name)) {
+              uploadedPassportMeta.push({
+                name: file.name,
+                path: filePath
+              });
+            } else if (uploadError) {
+              console.error('Passport file upload error:', file.name, uploadError);
+            }
           }
         }
 
@@ -120,7 +144,7 @@ export default function AddCustomer() {
         }
       }
 
-      setMsg({ text: 'Customer and passport files uploaded successfully! Redirecting...', type: 'success' });
+      setMsg({ text: 'Customer and service details saved successfully! Redirecting...', type: 'success' });
       setTimeout(() => {
         router.push('/customers');
       }, 1500);
@@ -132,8 +156,7 @@ export default function AddCustomer() {
     }
   };
 
-  const selectedService = services.find(s => s.id === formData.service);
-  const isGeneral = selectedService && selectedService.name === 'General Service';
+  const isGeneral = selectedServices.length > 0 && selectedServices.every((id: string) => services.find(s => s.id === id)?.name === 'General Service');
 
   return (
     <div className={styles.container}>
@@ -183,13 +206,15 @@ export default function AddCustomer() {
           </div>
 
           <div className={styles.formSection}>Service Type</div>
-          <div className={styles.formGroup}>
-            <label>Select Service *</label>
-            <select name="service" required value={formData.service} onChange={(e) => setFormData({...formData, service: e.target.value})}>
-              <option value="">-- Select Service --</option>
-              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
+          <ServiceTypeSelector
+            services={services}
+            selectedServiceIds={selectedServices}
+            onChange={(ids) => {
+              setSelectedServices(ids);
+              if (ids.length > 0) setServiceError('');
+            }}
+            error={serviceError}
+          />
 
 
           <div className={styles.formSection}>Passport & Visa Details</div>

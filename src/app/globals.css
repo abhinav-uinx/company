@@ -447,9 +447,37 @@ body.view-admin .service-card.admin-only{display:flex;}
 }
 
 
-/* Hide scrollbar for Chrome, Safari and Opera */
+/* Modern Bespoke Scrollbars (replaces clunky default browser scrollbars) */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Hide scrollbar utility */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 

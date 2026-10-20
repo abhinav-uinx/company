@@ -7,6 +7,7 @@ import { supabaseAuth } from '@/lib/supabase';
 import styles from './invoices.module.css';
 import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
+import { RecordPaymentModal } from './components';
 
 export default function InvoicesList() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -126,55 +127,33 @@ export default function InvoicesList() {
         </div>
       </div>
 
-      {paymentModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', padding: '30px', borderRadius: '12px', width: '90%', maxWidth: '400px' }}>
-            <h2 style={{ margin: '0 0 15px' }}>Record Payment</h2>
-            <p style={{ margin: '0 0 20px', color: '#64748b' }}>Current Balance: <strong>${paymentModal.balance_amount}</strong></p>
-            
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 500 }}>Payment Amount ($)</label>
-              <input 
-                type="number" 
-                step="0.01" 
-                value={paymentAmt} 
-                onChange={(e) => setPaymentAmt(parseFloat(e.target.value) || 0)} 
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              />
-            </div>
+      <RecordPaymentModal
+        paymentModal={paymentModal}
+        onClose={() => setPaymentModal(null)}
+        onConfirm={async (amount: number) => {
+          const newAdvance = (paymentModal.advance_payment || 0) + amount;
+          const newBalance = (paymentModal.total_amount || 0) - newAdvance;
+          let newStatus = 'Partially Paid';
+          if (newBalance <= 0) newStatus = 'Paid';
+          
+          // Update Invoice
+          await supabaseAuth.from('invoices').update({
+            advance_payment: newAdvance,
+            balance_amount: newBalance < 0 ? 0 : newBalance,
+            status: newStatus
+          }).eq('id', paymentModal.id);
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '25px' }}>
-              <button onClick={() => setPaymentModal(null)} style={{ padding: '10px 15px', background: '#f1f5f9', color: '#334155', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={async () => {
-                if (paymentAmt <= 0) return alert('Amount must be greater than 0');
-                const newAdvance = paymentModal.advance_payment + paymentAmt;
-                const newBalance = paymentModal.total_amount - newAdvance;
-                let newStatus = 'Partially Paid';
-                if (newBalance <= 0) newStatus = 'Paid';
-                
-                // Update Invoice
-                await supabaseAuth.from('invoices').update({
-                  advance_payment: newAdvance,
-                  balance_amount: newBalance < 0 ? 0 : newBalance,
-                  status: newStatus
-                }).eq('id', paymentModal.id);
+          // Add to payment history
+          await supabaseAuth.from('payment_history').insert([{
+            invoice_id: paymentModal.id,
+            amount: amount,
+            payment_method: 'Manual Payment'
+          }]);
 
-                // Add to payment history
-                await supabaseAuth.from('payment_history').insert([{
-                  invoice_id: paymentModal.id,
-                  amount: paymentAmt,
-                  payment_method: 'Manual Payment'
-                }]);
-
-                setPaymentModal(null);
-                fetchInvoices();
-              }} style={{ padding: '10px 15px', background: '#16a34a', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
-                Confirm Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          setPaymentModal(null);
+          fetchInvoices();
+        }}
+      />
     </>
   );
 }

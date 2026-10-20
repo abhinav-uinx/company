@@ -91,13 +91,13 @@ export default function Dashboard() {
           </div>
 
           {userRole === 'admin' && (
-            <div className="service-card admin-only" onClick={() => router.push('/admin/user')} style={{ cursor: 'pointer' }}>
+            <div className="service-card admin-only" onClick={() => router.push('/admin/directory?tab=users')} style={{ cursor: 'pointer' }}>
               <span className="admin-tag">Admin only</span>
               <div className="service-icon icon-admin">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               </div>
               <h3>Manage Employee</h3>
-              <Link className="service-open group" href="/admin/user"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
+              <Link className="service-open group" href="/admin/directory?tab=users"><span className="material-symbols-outlined -rotate-45 group-hover:rotate-0 transition-transform duration-300">arrow_forward</span></Link>
             </div>
           )}
 
