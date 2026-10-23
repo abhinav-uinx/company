@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { getSession, logout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
@@ -49,6 +49,8 @@ export default function GeneralFormsPage() {
         .tab-btn:hover { color: #334155; }
         .tab-btn.active { color: #3b82f6; }
         .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: #3b82f6; border-radius: 3px 3px 0 0; }
+        .back-btn { text-decoration: none; color: #334155; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 12px 6px 8px; display: inline-flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; margin-bottom: 10px; }
+        .back-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
         
         /* Other Forms List */
         .other-forms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }

@@ -30,7 +30,8 @@ export default function AddEmployee(props: any) {
       const { data: rData } = await supabaseAuth.from('roles').select('*').order('role_name');
       if (rData) {
         setRolesList(rData);
-        if (rData.length > 0) setSelectedRole(rData[0].id);
+        const staffRole = rData.find((r: any) => r.role_name.toLowerCase() === 'staff') || rData[0];
+        if (staffRole) setSelectedRole(staffRole.id);
       }
     };
     loadData();
@@ -149,19 +150,35 @@ export default function AddEmployee(props: any) {
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>Role</label>
-                  <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none', appearance: 'none', cursor: 'pointer' }} value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
-                    <option value="">No Role</option>
-                    {rolesList.map(r => (
-                      <option key={r.id} value={r.id}>{r.role_name}</option>
-                    ))}
-                  </select>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>
+                    System Role
+                  </label>
+                  <div
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#1e293b',
+                      fontSize: '0.9rem',
+                      fontWeight: 500
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#2563eb' }}>
+                      shield_person
+                    </span>
+                    <span>Staff</span>
+                  </div>
                 </div>
                 
                 <div className="form-group">
                   <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>Account Status</label>
                   <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', outline: 'none', appearance: 'none', cursor: 'pointer' }} value={newPermission} onChange={e => setNewPermission(e.target.value)}>
-                    <option value="active">Active (Full Access)</option>
+                    <option value="active">Active</option>
                     <option value="view_only">View Only</option>
                     <option value="disabled">Disabled</option>
                   </select>

@@ -7,12 +7,30 @@ interface GeneralServiceDetailsModalProps {
   viewCustomer: any;
   docTypes: any[];
   onClose: () => void;
+  onStatusChange?: (id: string, newStatus: string) => void;
 }
+
+const getStatusBadgeStyle = (status: string) => {
+  const s = (status || '').toLowerCase();
+  if (s === 'done' || s === 'completed') {
+    return {
+      background: '#ecfdf5',
+      color: '#065f46',
+      borderColor: '#a7f3d0'
+    };
+  }
+  return {
+    background: '#fffbeb',
+    color: '#92400e',
+    borderColor: '#fde68a'
+  };
+};
 
 export default function GeneralServiceDetailsModal({
   viewCustomer,
   docTypes,
-  onClose
+  onClose,
+  onStatusChange
 }: GeneralServiceDetailsModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -139,6 +157,67 @@ export default function GeneralServiceDetailsModal({
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Contact Number</div>
                 <div style={{ fontWeight: 500, color: '#0f172a' }}>{viewCustomer.customers?.contact_number || '-'}</div>
               </div>
+              <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px' }}>Status</div>
+                {(() => {
+                  const isDone = (viewCustomer.status || '').toLowerCase() === 'done' || (viewCustomer.status || '').toLowerCase() === 'completed';
+                  return (
+                    <div
+                      style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderRadius: '9999px',
+                        padding: '3px 8px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                        background: isDone ? '#ecfdf5' : '#fffbeb',
+                        border: `1px solid ${isDone ? '#a7f3d0' : '#fde68a'}`,
+                        color: isDone ? '#065f46' : '#92400e',
+                        userSelect: 'none'
+                      }}
+                      title="Click to change status"
+                    >
+                      {isDone ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#059669', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                      ) : null}
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.01em', lineHeight: 1 }}>
+                        {isDone ? 'Done' : 'Pending'}
+                      </span>
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: '13px',
+                          opacity: 0.7,
+                          marginLeft: '0px'
+                        }}
+                      >
+                        expand_more
+                      </span>
+
+                      {/* Full-coverage native select overlay */}
+                      <select
+                        value={isDone ? 'Done' : 'Pending'}
+                        onChange={(e) => onStatusChange?.(viewCustomer.id, e.target.value)}
+                        aria-label="Change status"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          opacity: 0,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Done">Done</option>
+                      </select>
+                    </div>
+                  );
+                })()}
+              </div>
               <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9', gridColumn: '1 / -1' }}>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Requested Documents</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
@@ -191,14 +270,19 @@ export default function GeneralServiceDetailsModal({
             href={`/documentation/${viewCustomer.id}`}
             style={{
               padding: '10px 20px',
-              background: '#e2e8f0',
-              color: '#0f172a',
+              background: '#eff6ff',
+              color: '#2563eb',
               borderRadius: '8px',
               textDecoration: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
             }}
           >
-            Edit Customer
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span>
+            Edit Request
           </Link>
           <button
             type="button"

@@ -35,6 +35,18 @@ function sanitizeData(data: any): any {
   return clean;
 }
 
+// In-memory cache for fast GET responses (20s TTL) with instant invalidation on mutations
+interface CachedProxyResponse {
+  status: number;
+  body: string;
+  contentType: string;
+  headers: Record<string, string>;
+  timestamp: number;
+}
+
+const proxyGetCache = new Map<string, CachedProxyResponse>();
+const PROXY_CACHE_TTL = 20000; // 20 seconds
+
 async function handleRequest(req: NextRequest, pathArray?: string[]) {
   // 1. Authenticate request via session
   const session = await getSession();
@@ -48,6 +60,15 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     targetTable = pathArray[2];
   } else if (pathArray && pathArray.length > 0) {
     targetTable = pathArray[0];
+  }
+
+  // Invalidate cache on mutations for the target table
+  if (req.method !== 'GET' && req.method !== 'HEAD' && targetTable) {
+    proxyGetCache.forEach((_, key) => {
+      if (key.includes(targetTable)) {
+        proxyGetCache.delete(key);
+      }
+    });
   }
 
   // Enforce role-based access for administrative tables
@@ -66,6 +87,20 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
   const path = pathArray ? pathArray.join('/') : '';
   const searchParams = req.nextUrl.search;
   const targetUrl = `${SUPABASE_URL}/${path}${searchParams}`;
+
+  // Check GET cache for instant response (<1ms)
+  if (req.method === 'GET') {
+    const cached = proxyGetCache.get(targetUrl);
+    if (cached && (Date.now() - cached.timestamp < PROXY_CACHE_TTL)) {
+      return new NextResponse(cached.body, {
+        status: cached.status,
+        headers: {
+          ...cached.headers,
+          'X-Proxy-Cache': 'HIT'
+        }
+      });
+    }
+  }
 
   // 3. Forward headers, injecting Service Role Key safely from server
   const headers = new Headers(req.headers);
@@ -98,28 +133,40 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
 
     const contentType = response.headers.get('content-type') || '';
 
-    // If response is JSON, sanitize out sensitive data (passwords) so they never reach browser
+    // If response is JSON, sanitize credentials if applicable and cache
     if (contentType.includes('json')) {
       const text = await response.text();
-      try {
-        const json = JSON.parse(text);
-        const sanitized = sanitizeData(json);
-        return new NextResponse(JSON.stringify(sanitized), {
-          status: response.status,
-          headers: {
-            ...Object.fromEntries(responseHeaders.entries()),
-            'Content-Type': contentType || 'application/json'
-          }
-        });
-      } catch {
-        return new NextResponse(text, {
-          status: response.status,
-          headers: {
-            ...Object.fromEntries(responseHeaders.entries()),
-            'Content-Type': contentType || 'application/json'
-          }
+      let outputBody = text;
+
+      // Only run recursive sanitization for tables with passwords
+      if (targetTable === 'admins' || targetTable === 'employees') {
+        try {
+          const json = JSON.parse(text);
+          const sanitized = sanitizeData(json);
+          outputBody = JSON.stringify(sanitized);
+        } catch {}
+      }
+
+      const outHeaders = {
+        ...Object.fromEntries(responseHeaders.entries()),
+        'Content-Type': contentType || 'application/json'
+      };
+
+      // Cache successful GET requests
+      if (req.method === 'GET' && response.status === 200) {
+        proxyGetCache.set(targetUrl, {
+          status: 200,
+          body: outputBody,
+          contentType: contentType || 'application/json',
+          headers: outHeaders,
+          timestamp: Date.now()
         });
       }
+
+      return new NextResponse(outputBody, {
+        status: response.status,
+        headers: outHeaders
+      });
     }
 
     // For non-JSON (binary streams, images, PDFs, etc.)

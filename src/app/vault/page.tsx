@@ -147,9 +147,22 @@ export default function Vault() {
   // Process Customers with Invoices, Payments, Missions, and Assigned Nurse
   const processedCustomers = useMemo(() => {
     return customers.map(cust => {
-      const custServicesList: string[] = Array.isArray(cust.services) && cust.services.length > 0
-        ? cust.services.map((id: string) => services.find(s => s.id === id)?.name).filter(Boolean)
-        : [services.find(s => s.id === cust.service)?.name].filter(Boolean);
+      let rawServices = cust.services || cust.doctor_reports_urls;
+      if (typeof rawServices === 'string') {
+        try {
+          const parsed = JSON.parse(rawServices);
+          if (Array.isArray(parsed)) rawServices = parsed;
+        } catch {}
+      }
+
+      const custServiceIds: string[] = Array.isArray(rawServices) && rawServices.length > 0
+        ? rawServices
+        : (cust.service ? [cust.service] : []);
+
+      const custServicesList: string[] = custServiceIds
+        .map((id: string) => services.find(s => s.id === id)?.name)
+        .filter(Boolean);
+
       const serviceName = custServicesList.length > 0 ? custServicesList.join(', ') : 'Unassigned';
       const hasMedical = custServicesList.some((s: string) => s.toLowerCase().includes('medical'));
       const hasGeneral = custServicesList.some((s: string) => s.toLowerCase().includes('general'));
@@ -425,8 +438,8 @@ export default function Vault() {
         .medif-badge-btn:hover { background: #fee2e2 !important; border-color: #fca5a5 !important; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15); }
 
         /* Action View Button */
-        .view-action-btn { background: #4F5DFF; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79, 93, 255, 0.25); transition: all 0.2s; white-space: nowrap; }
-        .view-action-btn:hover { background: #3b49e0; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 93, 255, 0.35); }
+        .view-action-btn { background: #f1f5f9; color: #334155; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease; white-space: nowrap; }
+        .view-action-btn:hover { background: #e2e8f0; color: #0f172a; }
 
         /* Modal Backdrop & Container */
         .modal-overlay {
@@ -761,8 +774,8 @@ export default function Vault() {
         {/* Top Header */}
         <div className="vault-top">
           <div>
-            <Link href="/dashboard" className="back-link">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span> Back to Dashboard
+            <Link href="/dashboard" className="back-btn">
+              <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
             </Link>
             <h1 style={{ margin: '14px 0 4px 0', fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
               Document Vault

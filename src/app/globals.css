@@ -625,3 +625,30 @@ button:active, .btn:active, .btn-submit:active, .tab-btn:active {
   line-height: 1;
   flex-shrink: 0;
 }
+
+/* ============================================================
+   SHARED BACK BUTTON (Pill-style as in directory)
+   ============================================================ */
+.back-btn {
+  text-decoration: none;
+  color: #334155;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 6px 12px 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.back-btn:hover {
+  background: #f4f5f7;
+  border-color: #d1d5db;
+  color: #0f172a;
+}
+

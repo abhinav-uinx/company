@@ -8,27 +8,37 @@ import styles from './invoices.module.css';
 import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
 import { RecordPaymentModal } from './components';
+import { getCachedData, setCachedData } from '@/lib/appDataCache';
 
 export default function InvoicesList() {
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>(() => getCachedData('invoices') || []);
   const { role, isFolderAllowed } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => !getCachedData('invoices')?.length);
   const [paymentModal, setPaymentModal] = useState<any>(null);
   const [paymentAmt, setPaymentAmt] = useState(0);
 
   useEffect(() => {
-    fetchInvoices();
+    const hasData = (getCachedData('invoices')?.length || 0) > 0;
+    fetchInvoices(!hasData);
   }, [role, isFolderAllowed]);
 
-  async function fetchInvoices() {
-    setLoading(true);
-    const { data, error } = await supabaseAuth
-      .from('invoices')
-      .select('*, customers!customer_id(name)')
-      .order('created_at', { ascending: false });
-    
-    if (data) setInvoices(data);
-    setLoading(false);
+  async function fetchInvoices(showSpinner = false) {
+    if (showSpinner) setLoading(true);
+    try {
+      const { data, error } = await supabaseAuth
+        .from('invoices')
+        .select('*, customers!customer_id(name)')
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setInvoices(data);
+        setCachedData('invoices', data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const getStatusClass = (status: string) => {
@@ -59,7 +69,7 @@ export default function InvoicesList() {
     <>
       <div className={styles.container}>
         <Link href="/dashboard" className={styles.backBtn}>
-          <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
         </Link>
         
         <div className={styles.header}>
@@ -101,14 +111,36 @@ export default function InvoicesList() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={() => { setPaymentModal(inv); setPaymentAmt(inv.balance_amount); }} style={{ color: '#16a34a', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} disabled={inv.status === 'Paid'}>
-                          {inv.status === 'Paid' ? 'Fully Paid' : 'Log Payment'}
-                        </button>
-                        <Link href={`/invoices/${inv.id}/edit`} className={styles.actionLink} style={{ color: '#f59e0b', textDecoration: 'none' }}>
+                      <div className={styles.actionsWrapper}>
+                        {inv.status === 'Paid' ? (
+                          <span className={styles.actionBtnPaid} title="Invoice fully paid">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            Fully Paid
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => { setPaymentModal(inv); setPaymentAmt(inv.balance_amount); }}
+                            className={`${styles.actionBtn} ${styles.actionBtnPay}`}
+                            title="Log Payment"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>payments</span>
+                            Log Payment
+                          </button>
+                        )}
+                        <Link
+                          href={`/invoices/${inv.id}/edit`}
+                          className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
+                          title="Edit Invoice"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#64748b' }}>edit</span>
                           Edit
                         </Link>
-                        <Link href={`/invoices/${inv.id}`} className={styles.actionLink} style={{ color: '#2563eb', textDecoration: 'none' }}>
+                        <Link
+                          href={`/invoices/${inv.id}`}
+                          className={`${styles.actionBtn} ${styles.actionBtnPdf}`}
+                          title="View PDF"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>picture_as_pdf</span>
                           View PDF
                         </Link>
                       </div>

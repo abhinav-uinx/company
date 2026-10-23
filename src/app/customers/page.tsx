@@ -9,11 +9,12 @@ import LoadingIcon from '@/components/LoadingIcon';
 import { useAuth } from '@/components/AuthGuard';
 import { CustomerConfirmModal, CustomerProfileModal } from './components';
 import FullscreenFileViewer from '@/components/FullscreenFileViewer';
+import { getCachedData, setCachedData } from '@/lib/appDataCache';
 
 export default function CustomersList() {
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [services, setServices] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>(() => getCachedData('customers') || []);
+  const [loading, setLoading] = useState(() => !getCachedData('customers')?.length);
+  const [services, setServices] = useState<any[]>(() => getCachedData('services') || []);
   const [search, setSearch] = useState('');
   
   const [deleteMode, setDeleteMode] = useState(false);
@@ -31,19 +32,34 @@ export default function CustomersList() {
 
   useEffect(() => {
     if (role === 'admin' || isFolderAllowed('customers')) {
-      fetchCustomers();
+      const hasData = (getCachedData('customers')?.length || 0) > 0;
+      fetchCustomers(!hasData);
     }
   }, [role, isFolderAllowed]);
 
-  async function fetchCustomers() {
-    setLoading(true);
-    const [cRes, sRes] = await Promise.all([
-      supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
-      supabaseAuth.from('services').select('*')
-    ]);
-    if (sRes.data) setServices(sRes.data);
-    if (cRes.data) setCustomers(cRes.data);
-    setLoading(false);
+  async function fetchCustomers(showSpinner = false) {
+    if (showSpinner) setLoading(true);
+    try {
+      const cachedServices = getCachedData('services');
+      const fetchServices = !cachedServices || cachedServices.length === 0;
+
+      const [cRes, sRes] = await Promise.all([
+        supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
+        fetchServices ? supabaseAuth.from('services').select('*') : Promise.resolve({ data: cachedServices })
+      ]);
+      if (sRes?.data) {
+        setServices(sRes.data);
+        setCachedData('services', sRes.data);
+      }
+      if (cRes?.data) {
+        setCustomers(cRes.data);
+        setCachedData('customers', cRes.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filteredCustomers = customers.filter(p => 
@@ -70,8 +86,9 @@ export default function CustomersList() {
       const customer = customers.find(c => c.id === id);
       if (customer) {
         const bucketsToClean = new Set<string>();
-        const custServiceIds = Array.isArray(customer.services) && customer.services.length > 0 
-          ? customer.services 
+        const rawCustServices = customer.services || customer.doctor_reports_urls;
+        const custServiceIds = Array.isArray(rawCustServices) && rawCustServices.length > 0 
+          ? rawCustServices 
           : [customer.service].filter(Boolean);
         
         custServiceIds.forEach((sId: string) => {
@@ -207,7 +224,7 @@ export default function CustomersList() {
       />
 
       <Link href="/dashboard" className={styles.backBtn}>
-        <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
+        <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
       </Link>
       
       <div className={styles.header}>
@@ -278,8 +295,15 @@ export default function CustomersList() {
                   <td style={{ fontWeight: 500 }}>{customer.name}</td>
                   <td>
                     {(() => {
-                      const custServiceNames = Array.isArray(customer.services) && customer.services.length > 0
-                        ? customer.services.map((id: string) => services.find(s => s.id === id)?.name).filter(Boolean)
+                      let rawServices = customer.services || customer.doctor_reports_urls;
+                      if (typeof rawServices === 'string') {
+                        try {
+                          const parsed = JSON.parse(rawServices);
+                          if (Array.isArray(parsed)) rawServices = parsed;
+                        } catch {}
+                      }
+                      const custServiceNames = Array.isArray(rawServices) && rawServices.length > 0
+                        ? rawServices.map((id: string) => services.find(s => s.id === id)?.name).filter(Boolean)
                         : [services.find(s => s.id === customer.service)?.name].filter(Boolean);
                       
                       return custServiceNames.length > 0 ? (

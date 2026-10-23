@@ -15,8 +15,10 @@ export default function EditSalaryPage() {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
+  const [employeeId, setEmployeeId] = useState('');
   const [employeeIqama, setEmployeeIqama] = useState('');
   const [employeeName, setEmployeeName] = useState('Unknown');
+  const [department, setDepartment] = useState('');
   const [month, setMonth] = useState('');
   const [basicSalary, setBasicSalary] = useState<number>(0);
   const [advancePayment, setAdvancePayment] = useState<number>(0);
@@ -32,7 +34,8 @@ export default function EditSalaryPage() {
     setLoading(true);
     const { data, error } = await supabaseAuth.from('employee_salaries').select('*').eq('id', id).single();
     if (data) {
-      setEmployeeIqama(data.employee_iqama);
+      setEmployeeId(data.employee_id || '');
+      setEmployeeIqama(data.employee_iqama || '');
       setMonth(data.month);
       setBasicSalary(data.basic_salary || 0);
       setAdvancePayment(data.advance_payment || 0);
@@ -40,9 +43,33 @@ export default function EditSalaryPage() {
       setDeductionComment(data.deduction_comment || '');
       setStatus(data.status || 'Pending');
       
-      // Fetch employee name
-      const { data: empData } = await supabaseAuth.from('employees').select('name').eq('iqama_number', data.employee_iqama).single();
-      if (empData) setEmployeeName(empData.name);
+      // Fetch employee info - query by employee_id first, then iqama
+      let emp: any = null;
+      if (data.employee_id) {
+        const { data: empById } = await supabaseAuth
+          .from('employees')
+          .select('id, name, iqama_number, department')
+          .eq('id', data.employee_id)
+          .single();
+        emp = empById;
+      }
+      if (!emp && data.employee_iqama) {
+        const { data: empByIqama } = await supabaseAuth
+          .from('employees')
+          .select('id, name, iqama_number, department')
+          .eq('iqama_number', data.employee_iqama)
+          .single();
+        emp = empByIqama;
+      }
+
+      if (emp) {
+        setEmployeeName(emp.name);
+        setEmployeeIqama(emp.iqama_number || data.employee_iqama);
+        setDepartment(emp.department || '');
+        if (!data.employee_id && emp.id) {
+          setEmployeeId(emp.id);
+        }
+      }
     } else if (error) {
       setErrorMsg(error.message);
     }
@@ -57,14 +84,32 @@ export default function EditSalaryPage() {
     // Auto-calculate net salary
     const netSalary = (Number(basicSalary) || 0) - (Number(advancePayment) || 0) - (Number(deductions) || 0);
 
-    const { error } = await supabaseAuth.from('employee_salaries').update({
+    const updatePayload: any = {
       basic_salary: Number(basicSalary),
       advance_payment: Number(advancePayment),
       deductions: Number(deductions),
       deduction_comment: deductionComment,
       net_salary: netSalary,
       status: status
-    }).eq('id', id);
+    };
+
+    if (employeeId) {
+      updatePayload.employee_id = employeeId;
+    }
+
+    let { error } = await supabaseAuth.from('employee_salaries').update(updatePayload).eq('id', id);
+
+    // Graceful fallback if employee_id column doesn't exist yet on remote db before migration
+    if (
+      error &&
+      (error.message?.toLowerCase().includes('employee_id') ||
+        (error as any).code === 'PGRST204' ||
+        (error as any).code === '42703')
+    ) {
+      delete updatePayload.employee_id;
+      const retry = await supabaseAuth.from('employee_salaries').update(updatePayload).eq('id', id);
+      error = retry.error;
+    }
 
     setSaving(false);
     if (error) {
@@ -100,14 +145,40 @@ export default function EditSalaryPage() {
         
         <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           
-          {/* Employee Info Box */}
+          {/* Employee Info Box with ID & Iqama */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '25px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <div style={{ width: '56px', height: '56px', background: '#e0f2fe', color: '#0ea5e9', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>person</span>
             </div>
-            <div>
-              <h3 style={{ margin: '0 0 6px 0', color: '#0f172a', fontSize: '1.2rem', letterSpacing: '-0.5px' }}>{employeeName}</h3>
-              <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>Iqama: {employeeIqama} <span style={{ margin: '0 10px', color: '#cbd5e1' }}>|</span> Month: <strong style={{ color: '#0f172a' }}>{month}</strong></p>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: '0 0 4px 0', color: '#0f172a', fontSize: '1.2rem', letterSpacing: '-0.5px' }}>
+                  {employeeName}
+                </h3>
+                {department && (
+                  <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: '#e2e8f0', color: '#475569', borderRadius: '10px', fontWeight: 600 }}>
+                    {department}
+                  </span>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '4px' }}>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
+                  <strong>Iqama:</strong> {employeeIqama}
+                </p>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
+                  <strong>Month:</strong> <span style={{ color: '#0f172a', fontWeight: 600 }}>{month}</span>
+                </p>
+                {employeeId && (
+                  <>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span style={{ fontSize: '0.8rem', color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: '6px', border: '1px solid #bfdbfe', fontFamily: 'monospace' }}>
+                      UUID: {employeeId}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -200,7 +271,7 @@ export default function EditSalaryPage() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', marginTop: '15px', paddingTop: '30px', borderTop: '1px solid #e2e8f0' }}>
-            <Link href="/admin/directory/salary" className="btn" style={{ background: '#f1f5f9', color: '#475569', padding: '14px 28px', textDecoration: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Link href="/admin/directory?tab=salary" className="btn" style={{ background: '#f1f5f9', color: '#475569', padding: '14px 28px', textDecoration: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                Cancel
             </Link>
             <button type="submit" disabled={saving} className="btn-submit" style={{ background: '#0ea5e9', padding: '14px 32px', borderRadius: '10px', fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: 'none', color: '#fff', boxShadow: '0 4px 10px -2px rgba(14, 165, 233, 0.4)' }}>
@@ -213,8 +284,3 @@ export default function EditSalaryPage() {
     </div>
   );
 }
-
-
-
-
-

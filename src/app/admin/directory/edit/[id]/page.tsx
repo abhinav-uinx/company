@@ -235,7 +235,7 @@ export default function EditEmployeePage() {
     }
   };
 
-  // Interactive toggle: switches between Active (Full Access) and Disabled
+  // Interactive toggle: switches between Authorized and Disabled
   const handleToggleFolder = (folderId: string) => {
     setFolderAccess(prev => {
       const current = prev[folderId] || { enabled: false, permission: 'disabled' };
@@ -385,22 +385,78 @@ export default function EditEmployeePage() {
   const allowedFoldersCount = Object.values(folderAccess).filter(f => f.enabled).length;
   const activeHighlightedCount = Object.values(folderAccess).filter(f => f.enabled && f.permission === 'full').length;
 
+  const cleanId = decodeURIComponent(String(employeeId || '')).trim();
+  const matchedDept = departments.find(d => d.id === departmentId);
+  const deptName = matchedDept ? matchedDept.name : (employee?.department || '');
+  const matchedRole = roles.find(r => r.id === roleId);
+  const roleName = matchedRole ? matchedRole.role_name : (employee?.role || '');
+
+  // Extract clean initials for executive avatar
+  const initials = name
+    ? name
+        .split(' ')
+        .filter(Boolean)
+        .map(part => part[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'EM';
+
+  // Determine if Iqama is a real national/residency ID vs raw machine UUID
+  const rawIqama = String(iqama || employee?.iqama_number || '').trim();
+  const isRealIqama = rawIqama && !rawIqama.includes('-') && rawIqama.length <= 15;
+  const displayIqama = isRealIqama ? rawIqama : null;
+  const displayEmpId = cleanId ? (cleanId.length > 12 ? `EMP-${cleanId.slice(0, 8).toUpperCase()}` : cleanId) : 'N/A';
+
+  // Unified, cohesive enterprise module styling (no random rainbow colors)
+  const getFolderTheme = (isFull: boolean, isViewOnly: boolean) => {
+    if (isFull) {
+      return { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' };
+    }
+    if (isViewOnly) {
+      return { bg: '#fffbeb', color: '#b45309', border: '#fde68a' };
+    }
+    return { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' };
+  };
+
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
         .edit-page-container {
           max-width: 1200px;
-          margin: 30px auto 60px;
+          margin: 28px auto 60px;
           padding: 0 20px;
         }
 
+        .back-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #475569;
+          text-decoration: none;
+          font-size: 0.86rem;
+          font-weight: 500;
+          margin-bottom: 14px;
+          padding: 6px 12px;
+          border-radius: 6px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          transition: all 0.15s ease;
+        }
+        .back-link:hover {
+          color: #0f172a;
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+
+        /* Clean Enterprise Profile Header */
         .edit-hero {
-          background: linear-gradient(135deg, #0B1220 0%, #1a2744 100%);
-          border-radius: 16px;
-          padding: 24px 30px;
-          color: #fff;
-          margin-bottom: 25px;
-          box-shadow: 0 10px 25px -5px rgba(11, 18, 32, 0.2);
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 22px 26px;
+          margin-bottom: 24px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -408,29 +464,109 @@ export default function EditEmployeePage() {
           gap: 20px;
         }
 
-        .back-link {
-          display: inline-flex;
+        .hero-profile-group {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .hero-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 10px;
+          background: #f1f5f9;
+          color: #0f172a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.15rem;
+          font-weight: 700;
+          border: 1px solid #e2e8f0;
+          flex-shrink: 0;
+        }
+
+        .hero-breadcrumb {
+          display: flex;
           align-items: center;
           gap: 6px;
-          color: #93c5fd;
-          text-decoration: none;
-          font-size: 0.88rem;
-          font-weight: 500;
-          margin-bottom: 12px;
-          transition: color 0.2s;
+          font-size: 0.74rem;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          color: #64748b;
+          text-transform: uppercase;
+          margin-bottom: 4px;
         }
-        .back-link:hover {
-          color: #bfdbfe;
+        .hero-breadcrumb-slash {
+          color: #cbd5e1;
+        }
+
+        .hero-title {
+          margin: 0;
+          font-size: 1.4rem;
+          font-weight: 700;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+
+        .hero-badges-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .hero-meta-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 3px 9px;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          color: #475569;
+          font-weight: 500;
+        }
+
+        .hero-meta-chip strong {
+          color: #0f172a;
+          font-weight: 600;
+        }
+
+        .hero-stats-panel {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .hero-kpi-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 10px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .hero-kpi-label {
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #64748b;
+          font-weight: 600;
         }
 
         /* Section Card Container */
         .section-card {
-          background: #fff;
-          border-radius: 14px;
+          background: #ffffff;
+          border-radius: 12px;
           border: 1px solid #e2e8f0;
           padding: 24px 28px;
-          margin-bottom: 25px;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+          margin-bottom: 24px;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
         }
 
         .section-header {
@@ -441,10 +577,10 @@ export default function EditEmployeePage() {
           padding-bottom: 14px;
           margin-bottom: 20px;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 12px;
         }
         .section-title {
-          font-size: 1.15rem;
+          font-size: 1.1rem;
           color: #0f172a;
           margin: 0;
           display: flex;
@@ -453,173 +589,116 @@ export default function EditEmployeePage() {
           font-weight: 700;
         }
 
+        .policy-notice-banner {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-left: 3px solid #2563eb;
+          border-radius: 8px;
+          padding: 12px 16px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 0.84rem;
+          color: #475569;
+          line-height: 1.45;
+        }
+
         .folder-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-          gap: 20px;
+          gap: 18px;
           margin-top: 15px;
         }
 
-        /* Standard Folder Card */
+        /* Standard Folder Card with Subtle Accent Strip */
         .folder-card {
-          background: #fff;
-          border-radius: 14px;
+          background: #ffffff;
+          border-radius: 12px;
           border: 1px solid #e2e8f0;
           padding: 20px;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.04);
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+          transition: all 0.2s ease;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           position: relative;
+          overflow: hidden;
+        }
+        .folder-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: transparent;
+          transition: all 0.2s ease;
         }
         .folder-card:hover {
-          box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+          box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
           border-color: #cbd5e1;
         }
 
-        /* ACTIVE OPTION HIGHLIGHT:
-           When the selected option is Active (Full Access), highlight prominently with vibrant border and glow */
+        /* Active Card: Clean Blue Outline & Top Accent */
         .folder-card.active-highlight {
-          border: 2px solid #4F5DFF !important;
+          border: 1.5px solid #3b82f6 !important;
           background: #ffffff !important;
-          box-shadow: 0 0 0 4px rgba(79, 93, 255, 0.16), 0 12px 28px -4px rgba(79, 93, 255, 0.18) !important;
-          transform: translateY(-2px);
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
         }
-
-        /* Non-active or disabled folder card: highlight is removed */
-        .folder-card.disabled-folder {
-          background: #f8fafc;
-          border-color: #f1f5f9;
-          box-shadow: none;
-          transform: none;
-        }
-
-        .active-highlight-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          background: #eff6ff;
-          color: #1d4ed8;
-          border: 1px solid #bfdbfe;
-          padding: 3px 10px;
-          border-radius: 20px;
-          font-size: 0.72rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
-        }
-
-        .active-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
+        .folder-card.active-highlight::before {
           background: #2563eb;
-          box-shadow: 0 0 6px #2563eb;
-          animation: pulseDot 1.8s infinite ease-in-out;
         }
 
-        @keyframes pulseDot {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.85); }
+        /* View Only Card: Warm Amber Outline & Top Accent */
+        .folder-card.view-highlight {
+          border: 1.5px solid #f59e0b !important;
+          box-shadow: 0 4px 14px rgba(245, 158, 11, 0.08) !important;
+        }
+        .folder-card.view-highlight::before {
+          background: #d97706;
         }
 
-        .changed-indicator {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          background: #fffbeb;
-          color: #b45309;
-          border: 1px dashed #f59e0b;
-          padding: 2px 7px;
-          border-radius: 10px;
-          font-size: 0.68rem;
-          font-weight: 700;
-          text-transform: uppercase;
+        /* Disabled folder card */
+        .folder-card.disabled-folder {
+          background: #fafafa;
+          border-color: #e2e8f0;
+          opacity: 0.72;
         }
-
-        .preview-btn {
-          width: 100%;
-          padding: 10px 16px;
-          border-radius: 8px;
-          font-size: 0.88rem;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-        }
-        .preview-btn.active {
-          background: #4F5DFF;
-          color: #ffffff;
-          box-shadow: 0 2px 6px rgba(79, 93, 255, 0.25);
-          cursor: pointer;
-        }
-        .preview-btn.active:hover {
-          background: #3C46D6;
-        }
-
-        /* User requested custom disabled button styling with red cross cursor */
-        .preview-btn.disabled-btn {
-          background: #f1f5f9 !important;
-          color: #94a3b8 !important;
-          border: 1px dashed #cbd5e1 !important;
-          opacity: 0.42 !important;
-          filter: grayscale(45%) !important;
-          cursor: not-allowed !important;
-        }
-        .preview-btn.disabled-btn:hover {
-          opacity: 0.6 !important;
-          border-color: #fca5a5 !important;
-          background: #fef2f2 !important;
-        }
-
-        .red-cross-indicator {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: #ef4444;
-          color: #ffffff;
-          font-size: 13px;
-          font-weight: 900;
-          box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
-          line-height: 1;
-        }
-
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 0.78rem;
-          font-weight: 700;
-          text-transform: uppercase;
-        }
-        .status-active { background: #dcfce7; color: #15803d; }
-        .status-view_only { background: #fef9c3; color: #a16207; }
-        .status-disabled { background: #fee2e2; color: #b91c1c; }
 
         .preset-chip {
-          background: #fff;
-          border: 1px solid #cbd5e1;
-          padding: 6px 14px;
-          border-radius: 20px;
-          font-size: 0.82rem;
-          font-weight: 600;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          padding: 5px 12px;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
           color: #334155;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.15s ease;
         }
         .preset-chip:hover {
-          background: #f1f5f9;
-          border-color: #94a3b8;
+          background: #f8fafc;
+          color: #0f172a;
+          border-color: #cbd5e1;
+        }
+        .preset-chip.chip-primary {
+          background: #ffffff;
+          border-color: #cbd5e1;
+          color: #2563eb;
+          font-weight: 600;
+        }
+        .preset-chip.chip-primary:hover {
+          background: #f0f7ff;
+          border-color: #bfdbfe;
+        }
+        .preset-chip.chip-danger {
+          color: #b91c1c;
+          border-color: #e2e8f0;
+        }
+        .preset-chip.chip-danger:hover {
+          background: #fef2f2;
+          border-color: #fecaca;
         }
 
         .form-input {
@@ -627,14 +706,15 @@ export default function EditEmployeePage() {
           padding: 10px 14px;
           border-radius: 8px;
           border: 1px solid #cbd5e1;
-          background: #fff;
-          font-size: 0.92rem;
+          background: #ffffff;
+          font-size: 0.9rem;
+          color: #0f172a;
           outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: border-color 0.15s, box-shadow 0.15s;
         }
         .form-input:focus {
-          border-color: #4F5DFF;
-          box-shadow: 0 0 0 3px rgba(79, 93, 255, 0.15);
+          border-color: #2563eb;
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
         }
       `}} />
 
@@ -649,30 +729,70 @@ export default function EditEmployeePage() {
           </Link>
         </div>
 
-        {/* Hero Header */}
+        {/* Executive Profile Header */}
         <div className="edit-hero">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#60a5fa' }}>manage_accounts</span>
-              <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>
-                {name ? `Edit Employee: ${name}` : 'Edit Employee & Access Control'}
-              </h1>
+          <div className="hero-profile-group">
+            {/* Clean Monogram Avatar */}
+            <div className="hero-avatar">
+              <span>{initials}</span>
             </div>
-            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.95rem' }}>
-              Iqama Number: <strong style={{ color: '#fff' }}>{employeeId}</strong> &bull; Configure staff profile details and folder authorization.
-            </p>
+
+            <div>
+              <div className="hero-breadcrumb">
+                <span>DIRECTORY</span>
+                <span className="hero-breadcrumb-slash">/</span>
+                <span>SECURITY &amp; ACCESS</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <h1 className="hero-title">
+                  {name || 'Employee Profile'}
+                </h1>
+              </div>
+
+              {/* Badges Row */}
+              <div className="hero-badges-row" style={{ marginTop: '10px' }}>
+                {displayIqama ? (
+                  <span className="hero-meta-chip">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>badge</span>
+                    Iqama: <strong>{displayIqama}</strong>
+                  </span>
+                ) : (
+                  <span className="hero-meta-chip">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>fingerprint</span>
+                    ID: <strong>{displayEmpId}</strong>
+                  </span>
+                )}
+
+                <span className="hero-meta-chip">
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>shield_person</span>
+                  System Role: <strong>{roleName ? roleName.charAt(0).toUpperCase() + roleName.slice(1) : 'Staff'}</strong>
+                </span>
+
+                {deptName && (
+                  <span className="hero-meta-chip">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>apartment</span>
+                    Department: <strong>{deptName}</strong>
+                  </span>
+                )}
+
+                {email && (
+                  <span className="hero-meta-chip">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>mail</span>
+                    {email}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span className={`status-badge status-${status}`}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'currentColor' }}></span>
-              {status === 'active' ? 'Active' : status === 'view_only' ? 'View Only' : 'Disabled'}
-            </span>
-
-            <div style={{ textAlign: 'right', background: 'rgba(255,255,255,0.08)', padding: '8px 16px', borderRadius: '10px' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Highlighted</div>
-              <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#38bdf8' }}>
-                {activeHighlightedCount} <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>/ {SYSTEM_FOLDERS.length}</span>
+          {/* Right-Side Summary Card */}
+          <div className="hero-stats-panel">
+            <div className="hero-kpi-card">
+              <div className="hero-kpi-label">Module Permissions</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <strong style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>{activeHighlightedCount}</strong>
+                <span style={{ fontSize: '0.82rem', color: '#64748b' }}>of {SYSTEM_FOLDERS.length} Granted</span>
               </div>
             </div>
           </div>
@@ -681,19 +801,19 @@ export default function EditEmployeePage() {
         {/* Toast Notification */}
         {toast.show && (
           <div style={{
-            padding: '14px 20px',
-            borderRadius: '10px',
+            padding: '12px 18px',
+            borderRadius: '8px',
             marginBottom: '20px',
             background: toast.type === 'success' ? '#f0fdf4' : toast.type === 'error' ? '#fef2f2' : '#fefce8',
-            border: `1px solid ${toast.type === 'success' ? '#86efac' : toast.type === 'error' ? '#fca5a5' : '#fde047'}`,
-            color: toast.type === 'success' ? '#15803d' : toast.type === 'error' ? '#b91c1c' : '#a16207',
+            border: `1px solid ${toast.type === 'success' ? '#bbf7d0' : toast.type === 'error' ? '#fecaca' : '#fef08a'}`,
+            color: toast.type === 'success' ? '#15803d' : toast.type === 'error' ? '#b91c1c' : '#854d0e',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            fontWeight: 600,
-            animation: 'fadeIn 0.2s ease-in'
+            fontWeight: 500,
+            fontSize: '0.88rem'
           }}>
-            <span className="material-symbols-outlined">
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
               {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'warning'}
             </span>
             {toast.message}
@@ -702,21 +822,21 @@ export default function EditEmployeePage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
-            <div className="material-symbols-outlined" style={{ fontSize: '48px', animation: 'spin 1s linear infinite' }}>progress_activity</div>
-            <p style={{ marginTop: '15px', fontWeight: 600 }}>Loading employee &amp; access controls...</p>
+            <div className="material-symbols-outlined" style={{ fontSize: '40px', animation: 'spin 1s linear infinite' }}>progress_activity</div>
+            <p style={{ marginTop: '12px', fontWeight: 500, fontSize: '0.9rem' }}>Loading employee profile &amp; access permissions...</p>
           </div>
         ) : (
           <form onSubmit={handleSave}>
 
-            {/* SECTION 1: EMPLOYEE PROFILE & DETAILS (VISIBLE IMMEDIATELY, NO TABS) */}
+            {/* SECTION 1: EMPLOYEE PROFILE & DETAILS */}
             <div className="section-card">
               <div className="section-header">
                 <div>
                   <h2 className="section-title">
-                    <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>person</span>
+                    <span className="material-symbols-outlined" style={{ color: '#2563eb', fontSize: '22px' }}>person</span>
                     Employee Details &amp; Profile Information
                   </h2>
-                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.86rem' }}>
                     Personal records, contact numbers, department assignments, and permission level.
                   </p>
                 </div>
@@ -725,12 +845,12 @@ export default function EditEmployeePage() {
                   type="button"
                   onClick={() => setShowPasswordSection(!showPasswordSection)}
                   style={{
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
                     padding: '6px 12px',
                     fontSize: '0.82rem',
-                    fontWeight: 600,
+                    fontWeight: 500,
                     color: '#334155',
                     cursor: 'pointer',
                     display: 'inline-flex',
@@ -745,7 +865,7 @@ export default function EditEmployeePage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     Full Name *
                   </label>
                   <input
@@ -759,20 +879,20 @@ export default function EditEmployeePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
-                    Iqama / Unique ID
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
+                    Iqama / National ID
                   </label>
                   <input
                     type="text"
                     className="form-input"
-                    disabled
                     value={iqama}
-                    style={{ background: '#f8fafc', color: '#64748b', fontWeight: 600 }}
+                    onChange={e => setIqama(e.target.value)}
+                    placeholder="e.g. 2489102938"
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     Email Address
                   </label>
                   <input
@@ -785,7 +905,7 @@ export default function EditEmployeePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     Contact Phone
                   </label>
                   <input
@@ -798,7 +918,7 @@ export default function EditEmployeePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     Job Title
                   </label>
                   <input
@@ -811,7 +931,7 @@ export default function EditEmployeePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     Department
                   </label>
                   <select
@@ -827,41 +947,35 @@ export default function EditEmployeePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.86rem', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
                     System Role
                   </label>
-                  <select
-                    className="form-input"
-                    value={roleId}
-                    onChange={e => setRoleId(e.target.value)}
+                  <div
+                    style={{
+                      padding: '11px 14px',
+                      background: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#1e293b',
+                      fontSize: '0.9rem',
+                      fontWeight: 500
+                    }}
                   >
-                    <option value="">No Role Assigned</option>
-                    {roles.map(r => (
-                      <option key={r.id} value={r.id}>{r.role_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '6px' }}>
-                    Account Status
-                  </label>
-                  <select
-                    className="form-input"
-                    value={status}
-                    onChange={e => setStatus(e.target.value)}
-                  >
-                    <option value="active">Active (Full Access)</option>
-                    <option value="view_only">View Only (Read Only)</option>
-                    <option value="disabled">Disabled (Prohibited)</option>
-                  </select>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#2563eb' }}>
+                      shield_person
+                    </span>
+                    <span>{roles.find(r => r.id === roleId)?.role_name ? roles.find(r => r.id === roleId)!.role_name.charAt(0).toUpperCase() + roles.find(r => r.id === roleId)!.role_name.slice(1) : 'Staff'}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Collapsible Password Reset Section */}
               {showPasswordSection && (
-                <div style={{ background: '#f8fafc', padding: '16px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.92rem', color: '#0f172a' }}>Change Employee Password</h4>
+                <div style={{ background: '#f8fafc', padding: '16px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '20px' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#0f172a' }}>Change Employee Password</h4>
                   <div style={{ position: 'relative', maxWidth: '380px' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -879,41 +993,41 @@ export default function EditEmployeePage() {
                       <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
                     Leave blank to preserve the employee&apos;s existing login credentials.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* SECTION 2: INTERACTIVE FOLDER ACCESS MATRIX (THE 7 SPECIFIED FOLDERS) */}
+            {/* SECTION 2: FOLDER ACCESS MATRIX */}
             <div className="section-card">
               <div className="section-header">
                 <div>
                   <h2 className="section-title">
-                    <span className="material-symbols-outlined" style={{ color: '#4F5DFF' }}>folder_shared</span>
+                    <span className="material-symbols-outlined" style={{ color: '#2563eb', fontSize: '22px' }}>folder_shared</span>
                     Folder &amp; File Access Matrix
                   </h2>
-                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
-                    Selecting <strong>Active</strong> highlights the folder. Selecting <strong>View Only</strong> or <strong>Disabled</strong> removes the highlight.
+                  <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.86rem' }}>
+                    Granular security privileges and folder authorization for MedEscort International records.
                   </p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748b' }}>Quick Presets:</span>
-                  <button type="button" className="preset-chip" onClick={() => handlePreset('all')}>All Active (Highlight)</button>
-                  <button type="button" className="preset-chip" onClick={() => handlePreset('nurse')}>Nurse Default</button>
-                  <button type="button" className="preset-chip" onClick={() => handlePreset('clinical')}>Clinical Only</button>
-                  <button type="button" className="preset-chip" style={{ color: '#ef4444', borderColor: '#fca5a5' }} onClick={() => handlePreset('none')}>Disable All (Remove Highlight)</button>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginRight: '4px' }}>Quick Presets:</span>
+                  <button type="button" className="preset-chip chip-primary" onClick={() => handlePreset('all')}>Grant All</button>
+                  <button type="button" className="preset-chip" onClick={() => handlePreset('nurse')}>Nurse Standard</button>
+                  <button type="button" className="preset-chip" onClick={() => handlePreset('clinical')}>Clinical View-Only</button>
+                  <button type="button" className="preset-chip chip-danger" onClick={() => handlePreset('none')}>Revoke All</button>
                 </div>
               </div>
 
-              {/* Info banner */}
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: '#1e3a8a' }}>
-                <span className="material-symbols-outlined" style={{ color: '#2563eb', fontSize: '20px' }}>info</span>
-                <span>
-                  <strong>Interactive Highlighting Policy:</strong> Active option selection illuminates the folder with a vibrant highlight border and glowing shadow. When set to <strong>Disabled</strong>, the button becomes dim and hovering displays a <strong>round red cross cursor</strong>.
-                </span>
+              {/* Policy Banner */}
+              <div className="policy-notice-banner">
+                <span className="material-symbols-outlined" style={{ color: '#2563eb', fontSize: '20px', flexShrink: 0 }}>verified_user</span>
+                <div>
+                  <strong style={{ color: '#0f172a' }}>Enterprise Access Governance:</strong> Enabled modules allow staff members to create, edit, and process records. View Only restricts actions to read-only audits. Disabled prevents access.
+                </div>
               </div>
 
               {/* Grid of the 7 System Folders */}
@@ -922,6 +1036,8 @@ export default function EditEmployeePage() {
                   const access = folderAccess[folder.id] || { enabled: false, permission: 'disabled' };
                   const isOptionActive = access.enabled && access.permission === 'full';
                   const isAllowed = access.enabled && access.permission !== 'disabled';
+                  const isViewOnly = access.enabled && access.permission === 'view_only';
+                  const theme = getFolderTheme(isOptionActive, isViewOnly);
 
                   // Detect modification from baseline
                   const initial = initialFolderAccess[folder.id];
@@ -930,205 +1046,158 @@ export default function EditEmployeePage() {
                   return (
                     <div
                       key={folder.id}
-                      className={`folder-card ${isOptionActive ? 'active-highlight' : ''} ${!isAllowed ? 'disabled-folder' : ''}`}
+                      className={`folder-card ${isOptionActive ? 'active-highlight' : isViewOnly ? 'view-highlight' : ''} ${!isAllowed ? 'disabled-folder' : ''}`}
                     >
                       <div>
                         {/* Folder Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{
-                              width: '42px',
-                              height: '42px',
+                              width: '40px',
+                              height: '40px',
                               borderRadius: '10px',
-                              background: isOptionActive ? '#eff6ff' : isAllowed ? '#fefce8' : '#f1f5f9',
-                              color: isOptionActive ? '#2563eb' : isAllowed ? '#ca8a04' : '#94a3b8',
+                              background: theme.bg,
+                              border: `1px solid ${theme.border}`,
+                              color: theme.color,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               transition: 'all 0.2s ease'
                             }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>{folder.icon}</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '21px' }}>{folder.icon}</span>
                             </div>
                             <div>
-                              <h4 style={{ margin: 0, fontSize: '0.98rem', color: isAllowed ? '#0f172a' : '#64748b' }}>
+                              <h4 style={{ margin: 0, fontSize: '0.94rem', color: isAllowed ? '#0f172a' : '#64748b', fontWeight: 600 }}>
                                 {folder.name}
                               </h4>
-                              <span style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
+                              <span style={{
+                                fontSize: '0.68rem',
+                                color: isAllowed ? theme.color : '#94a3b8',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                letterSpacing: '0.5px',
+                                opacity: isAllowed ? 0.95 : 0.6
+                              }}>
                                 {folder.category}
                               </span>
                             </div>
                           </div>
 
-                          {/* Status Badge & Toggle */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {isOptionActive ? (
-                              <span className="active-highlight-badge" title="Active Option Selected (Highlighted)">
-                                <span className="active-dot"></span>
-                                Active
-                              </span>
-                            ) : isModified ? (
-                              <span className="changed-indicator" title="Changed from initial state (Highlight removed)">
-                                Changed
-                              </span>
-                            ) : null}
-
-                            <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', marginLeft: '4px' }}>
+                          {/* Checkbox Toggle Only - No Badges */}
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                               <input
                                 type="checkbox"
                                 checked={isAllowed}
                                 onChange={() => handleToggleFolder(folder.id)}
                                 title={isAllowed ? 'Click to disable access' : 'Click to enable access'}
-                                style={{ width: '18px', height: '18px', accentColor: '#4F5DFF', cursor: 'pointer' }}
+                                style={{ width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer' }}
                               />
                             </label>
                           </div>
                         </div>
 
                         {/* Description */}
-                        <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 16px 0', minHeight: '36px', lineHeight: 1.4 }}>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0', lineHeight: 1.45 }}>
                           {folder.description}
                         </p>
-
-                        {/* Interactive Options: Active highlights; any changes remove highlight */}
-                        <div style={{ marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
-                              Access Options:
-                            </label>
-                            <span style={{ fontSize: '0.72rem', color: isOptionActive ? '#2563eb' : '#64748b', fontWeight: 600 }}>
-                              {isOptionActive ? 'Highlighted Active' : access.permission === 'view_only' ? 'View Only (No Highlight)' : 'Disabled'}
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {/* Option 1: ACTIVE (Full Access) -> HIGHLIGHTED */}
-                            <button
-                              type="button"
-                              onClick={() => handleSetPermissionLevel(folder.id, 'full')}
-                              style={{
-                                flex: 1,
-                                padding: '7px 8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 700,
-                                borderRadius: '6px',
-                                border: isOptionActive ? '2px solid #4F5DFF' : '1px solid #e2e8f0',
-                                background: isOptionActive ? '#4F5DFF' : '#fff',
-                                color: isOptionActive ? '#ffffff' : '#475569',
-                                boxShadow: isOptionActive ? '0 2px 8px rgba(79, 93, 255, 0.35)' : 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                transition: 'all 0.18s ease'
-                              }}
-                            >
-                              {isOptionActive && (
-                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
-                              )}
-                              Active
-                            </button>
-
-                            {/* Option 2: VIEW ONLY -> REMOVES HIGHLIGHT */}
-                            <button
-                              type="button"
-                              onClick={() => handleSetPermissionLevel(folder.id, 'view_only')}
-                              style={{
-                                flex: 1,
-                                padding: '7px 8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                borderRadius: '6px',
-                                border: (access.permission === 'view_only' && access.enabled) ? '2px solid #ca8a04' : '1px solid #e2e8f0',
-                                background: (access.permission === 'view_only' && access.enabled) ? '#fefce8' : '#fff',
-                                color: (access.permission === 'view_only' && access.enabled) ? '#854d0e' : '#64748b',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                transition: 'all 0.18s ease'
-                              }}
-                            >
-                              {(access.permission === 'view_only' && access.enabled) && (
-                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
-                              )}
-                              View Only
-                            </button>
-
-                            {/* Option 3: DISABLED -> REMOVES HIGHLIGHT & ACTIVATES DIM/RED CROSS */}
-                            <button
-                              type="button"
-                              onClick={() => handleSetPermissionLevel(folder.id, 'disabled')}
-                              style={{
-                                flex: 1,
-                                padding: '7px 8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                borderRadius: '6px',
-                                border: (!access.enabled || access.permission === 'disabled') ? '2px solid #dc2626' : '1px solid #e2e8f0',
-                                background: (!access.enabled || access.permission === 'disabled') ? '#fef2f2' : '#fff',
-                                color: (!access.enabled || access.permission === 'disabled') ? '#b91c1c' : '#64748b',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px',
-                                transition: 'all 0.18s ease'
-                              }}
-                            >
-                              {(!access.enabled || access.permission === 'disabled') && (
-                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>block</span>
-                              )}
-                              Disabled
-                            </button>
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Live Button Preview (Requirement: Dim button with red round cross cursor when disabled) */}
-                      <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '14px', marginTop: '10px' }}>
+                      {/* Access Options Control */}
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>
-                            Live Button Preview
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>
+                            Access Options:
+                          </label>
+                          <span style={{ fontSize: '0.76rem', color: isOptionActive ? '#2563eb' : isViewOnly ? '#b45309' : '#64748b', fontWeight: 600 }}>
+                            {isOptionActive ? 'Highlighted Active' : isViewOnly ? 'View Only' : 'Disabled'}
                           </span>
-                          {!isAllowed ? (
-                            <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span className="red-cross-indicator">✕</span>
-                              Access Prohibited
-                            </span>
-                          ) : isOptionActive ? (
-                            <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-                              Fully Active
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#ca8a04', fontWeight: 600 }}>
-                              View Only
-                            </span>
-                          )}
                         </div>
 
-                        <button
-                          type="button"
-                          className={`preview-btn ${isAllowed ? 'active' : 'disabled-btn'}`}
-                          onClick={() => {
-                            if (!isAllowed) {
-                              showToast(`Access Prohibited: "${folder.name}" access is disabled for this account.`, 'warning');
-                            } else {
-                              showToast(`Access Granted: ${folder.name} is accessible.`, 'success');
-                            }
-                          }}
-                          title={isAllowed ? `Allowed: ${folder.actionLabel}` : `Prohibited: Access to ${folder.name} is disabled`}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                            {isAllowed ? 'folder_open' : 'block'}
-                          </span>
-                          <span>{folder.actionLabel}</span>
-                          {!isAllowed && (
-                            <span className="red-cross-indicator" style={{ marginLeft: 'auto' }}>✕</span>
-                          )}
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {/* Option 1: ACTIVE */}
+                          <button
+                            type="button"
+                            onClick={() => handleSetPermissionLevel(folder.id, 'full')}
+                            style={{
+                              flex: 1,
+                              padding: '8px 10px',
+                              fontSize: '0.8rem',
+                              fontWeight: isOptionActive ? 700 : 500,
+                              borderRadius: '7px',
+                              border: isOptionActive ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                              background: isOptionActive ? '#2563eb' : '#ffffff',
+                              color: isOptionActive ? '#ffffff' : '#334155',
+                              boxShadow: isOptionActive ? '0 2px 6px rgba(37, 99, 235, 0.28)' : 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              transition: 'all 0.16s ease'
+                            }}
+                          >
+                            {isOptionActive && (
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
+                            )}
+                            Active
+                          </button>
+
+                          {/* Option 2: VIEW ONLY */}
+                          <button
+                            type="button"
+                            onClick={() => handleSetPermissionLevel(folder.id, 'view_only')}
+                            style={{
+                              flex: 1,
+                              padding: '8px 10px',
+                              fontSize: '0.8rem',
+                              fontWeight: isViewOnly ? 700 : 500,
+                              borderRadius: '7px',
+                              border: isViewOnly ? '1.5px solid #d97706' : '1px solid #e2e8f0',
+                              background: isViewOnly ? '#fefce8' : '#ffffff',
+                              color: isViewOnly ? '#92400e' : '#334155',
+                              boxShadow: isViewOnly ? '0 1px 3px rgba(217, 119, 6, 0.15)' : 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              transition: 'all 0.16s ease'
+                            }}
+                          >
+                            {isViewOnly && (
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
+                            )}
+                            View Only
+                          </button>
+
+                          {/* Option 3: DISABLED */}
+                          <button
+                            type="button"
+                            onClick={() => handleSetPermissionLevel(folder.id, 'disabled')}
+                            style={{
+                              flex: 1,
+                              padding: '8px 10px',
+                              fontSize: '0.8rem',
+                              fontWeight: (!access.enabled || access.permission === 'disabled') ? 700 : 500,
+                              borderRadius: '7px',
+                              border: (!access.enabled || access.permission === 'disabled') ? '1.5px solid #dc2626' : '1px solid #e2e8f0',
+                              background: (!access.enabled || access.permission === 'disabled') ? '#fef2f2' : '#ffffff',
+                              color: (!access.enabled || access.permission === 'disabled') ? '#b91c1c' : '#334155',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              transition: 'all 0.16s ease'
+                            }}
+                          >
+                            {(!access.enabled || access.permission === 'disabled') && (
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>block</span>
+                            )}
+                            Disabled
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1138,14 +1207,15 @@ export default function EditEmployeePage() {
 
             {/* SECTION 3: STICKY ACTIONS BAR */}
             <div style={{
-              background: '#fff',
+              background: 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(10px)',
               border: '1px solid #e2e8f0',
-              padding: '18px 24px',
-              borderRadius: '12px',
+              padding: '16px 24px',
+              borderRadius: '10px',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+              boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
               position: 'sticky',
               bottom: '20px',
               zIndex: 90
@@ -1153,16 +1223,17 @@ export default function EditEmployeePage() {
               <Link
                 href="/admin/directory"
                 style={{
-                  color: '#64748b',
-                  fontWeight: 600,
+                  color: '#475569',
+                  fontWeight: 500,
                   textDecoration: 'none',
-                  padding: '10px 18px',
-                  borderRadius: '8px',
+                  padding: '9px 16px',
+                  borderRadius: '6px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0'
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.88rem'
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
@@ -1170,30 +1241,31 @@ export default function EditEmployeePage() {
               </Link>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <span style={{ fontSize: '0.88rem', color: '#64748b' }}>
-                  <strong>{activeHighlightedCount}</strong> Active Highlighted &bull; <strong>{allowedFoldersCount}</strong> of {SYSTEM_FOLDERS.length} Folders Authorized
+                <span style={{ fontSize: '0.86rem', color: '#64748b' }}>
+                  <strong style={{ color: '#0f172a' }}>{activeHighlightedCount}</strong> Active Highlighted &bull; <strong style={{ color: '#0f172a' }}>{allowedFoldersCount}</strong> of {SYSTEM_FOLDERS.length} Folders Authorized
                 </span>
 
                 <button
                   type="submit"
                   disabled={saving}
                   style={{
-                    background: '#4F5DFF',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '12px 28px',
-                    borderRadius: '8px',
-                    fontSize: '0.95rem',
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: '1px solid #1d4ed8',
+                    padding: '10px 24px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
                     fontWeight: 600,
                     cursor: saving ? 'not-allowed' : 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '8px',
-                    boxShadow: '0 4px 12px rgba(79, 93, 255, 0.35)',
-                    opacity: saving ? 0.7 : 1
+                    boxShadow: '0 1px 3px rgba(37, 99, 235, 0.25)',
+                    opacity: saving ? 0.7 : 1,
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  <span className="material-symbols-outlined">save</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
                   {saving ? 'Saving Changes...' : 'Save Employee & Access Control'}
                 </button>
               </div>

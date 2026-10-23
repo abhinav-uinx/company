@@ -80,8 +80,9 @@ export default function AddCustomer() {
       if (!cleanData.passport_expiry) delete cleanData.passport_expiry;
       if (!cleanData.visa_expiry) delete cleanData.visa_expiry;
 
-      // Multi-service support: save array in 'services' and primary in 'service'
+      // Multi-service support: save array in 'services' & 'doctor_reports_urls' and primary in 'service'
       cleanData.services = selectedServices;
+      cleanData.doctor_reports_urls = selectedServices;
       cleanData.service = selectedServices[0] || null;
 
       let insertRes = await supabaseAuth.from('customers').insert([cleanData]).select().single();

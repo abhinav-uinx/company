@@ -386,7 +386,7 @@ export default function CustomizeFolderAccess(props: any) {
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>({selectedEmp.iqama_number})</span>
                   </div>
                   <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
-                    Active Highlighted: <strong style={{ color: '#4F5DFF' }}>{activeCount}</strong> &bull; Total Authorized: <strong>{allowedCount}</strong> of {SYSTEM_FOLDERS.length} Folders
+                    Authorized: <strong style={{ color: '#4F5DFF' }}>{activeCount}</strong> &bull; Total Authorized: <strong>{allowedCount}</strong> of {SYSTEM_FOLDERS.length} Folders
                   </p>
                 </div>
 

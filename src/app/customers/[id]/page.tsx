@@ -35,8 +35,15 @@ export default function CustomerDetail() {
       if (data) {
         setCustomer(data);
         let initialServices: string[] = [];
-        if (Array.isArray(data.services) && data.services.length > 0) {
-          initialServices = data.services;
+        let rawServices = data.services || data.doctor_reports_urls;
+        if (typeof rawServices === 'string') {
+          try {
+            const parsed = JSON.parse(rawServices);
+            if (Array.isArray(parsed)) rawServices = parsed;
+          } catch {}
+        }
+        if (Array.isArray(rawServices) && rawServices.length > 0) {
+          initialServices = rawServices;
         } else if (data.service) {
           initialServices = [data.service];
         }
@@ -172,8 +179,10 @@ export default function CustomerDetail() {
 
     // Multi-service support with backward compatibility:
     // 1) services: JSONB array of UUIDs
-    // 2) service: primary service UUID for FK constraints
+    // 2) doctor_reports_urls: JSONB array of UUIDs (persisted regardless of schema migration)
+    // 3) service: primary service UUID for FK constraints
     cleanData.services = selectedServices;
+    cleanData.doctor_reports_urls = selectedServices;
     cleanData.service = selectedServices[0] || null;
 
     let { error } = await supabaseAuth.from('customers').update(cleanData).eq('id', id);

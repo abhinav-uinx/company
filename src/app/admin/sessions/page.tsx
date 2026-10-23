@@ -60,8 +60,8 @@ export default function SessionsPage() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1 style={{ margin: 0, fontSize: '24px', color: '#0f172a' }}>Active Sessions</h1>
-                <Link href="/admin/dashboard" style={{ color: '#4F5DFF', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EEF1FF', padding: '8px 16px', borderRadius: '8px', fontSize: '14px' }}>
-                    &larr; Back to Dashboard
+                <Link href="/admin/dashboard" className="back-btn">
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
                 </Link>
             </div>
             

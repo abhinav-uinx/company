@@ -91,19 +91,91 @@ export default function UsersListPage(props: any) {
     }
   };
 
-  const assignAsNurse = async (idOrIqama: string, currentDeptStr: string) => {
+  const assignAsNurse = async (idOrIqama: string, currentDeptStr: string, isCurrentlyNurse?: boolean) => {
     const nurseId = 'd69ccefc-045a-4bb1-8c27-99120e16610b';
-    let newDept = currentDeptStr || '';
-    if (!newDept.includes(nurseId)) {
-      newDept = newDept ? `${newDept},${nurseId}` : nurseId;
-    }
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
-    const { error } = await supabaseAuth.from('employees').update({ department: newDept }).eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
-    if (!error) {
-      setUsers(prev => prev.map(u => (u.id === idOrIqama || u.iqama_number === idOrIqama) ? { ...u, department: newDept } : u));
-      setUpdateMsg({ id: idOrIqama, text: 'Assigned as Nurse' });
-      notifyPermissionsChanged(idOrIqama);
-      setTimeout(() => setUpdateMsg(null), 3000);
+    const targetUser = users.find(u => u.id === idOrIqama || u.iqama_number === idOrIqama);
+
+    const currentlyNurse = isCurrentlyNurse !== undefined
+      ? isCurrentlyNurse
+      : ((targetUser?.departments?.name || currentDeptStr || '').toLowerCase().includes('nurse') ||
+         (currentDeptStr || '').includes(nurseId) ||
+         targetUser?.department_id === nurseId);
+
+    if (currentlyNurse) {
+      // Remove Nurse assignment
+      const parts = (currentDeptStr || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s && s.toLowerCase() !== 'nurse' && s !== nurseId);
+
+      const newDept = parts.length > 0 ? parts.join(',') : null;
+      const updatePayload: any = { department: newDept };
+
+      if (targetUser?.department_id === nurseId) {
+        updatePayload.department_id = parts.length > 0 ? parts[0] : null;
+      }
+
+      const { error } = await supabaseAuth
+        .from('employees')
+        .update(updatePayload)
+        .eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
+
+      if (!error) {
+        setUsers(prev => prev.map(u => {
+          if (u.id === idOrIqama || u.iqama_number === idOrIqama) {
+            const nextDeptId = updatePayload.department_id !== undefined ? updatePayload.department_id : u.department_id;
+            return {
+              ...u,
+              department: newDept,
+              department_id: nextDeptId,
+              departments: { name: newDept || 'N/A' }
+            };
+          }
+          return u;
+        }));
+        await loadUsers();
+        setUpdateMsg({ id: idOrIqama, text: 'Removed as Nurse' });
+        notifyPermissionsChanged(idOrIqama);
+        setTimeout(() => setUpdateMsg(null), 3000);
+      } else {
+        alert('Error updating department: ' + error.message);
+      }
+    } else {
+      // Assign Nurse
+      let newDept = currentDeptStr || '';
+      if (!newDept.includes(nurseId)) {
+        newDept = newDept ? `${newDept},${nurseId}` : nurseId;
+      }
+      const updatePayload: any = { department: newDept };
+      if (!targetUser?.department_id) {
+        updatePayload.department_id = nurseId;
+      }
+
+      const { error } = await supabaseAuth
+        .from('employees')
+        .update(updatePayload)
+        .eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
+
+      if (!error) {
+        setUsers(prev => prev.map(u => {
+          if (u.id === idOrIqama || u.iqama_number === idOrIqama) {
+            return {
+              ...u,
+              department: newDept,
+              department_id: updatePayload.department_id || u.department_id,
+              departments: { name: newDept }
+            };
+          }
+          return u;
+        }));
+        await loadUsers();
+        setUpdateMsg({ id: idOrIqama, text: 'Assigned as Nurse' });
+        notifyPermissionsChanged(idOrIqama);
+        setTimeout(() => setUpdateMsg(null), 3000);
+      } else {
+        alert('Error updating department: ' + error.message);
+      }
     }
   };
 
@@ -121,14 +193,43 @@ export default function UsersListPage(props: any) {
     }
   };
 
+  const updateRole = async (idOrIqama: string, roleId: string) => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrIqama);
+    const matchedRole = rolesList.find(r => r.id === roleId || r.role_name === roleId);
+    const roleVal = matchedRole ? matchedRole.id : roleId;
+    const roleName = matchedRole ? matchedRole.role_name : roleId;
+
+    const { error } = await supabaseAuth
+      .from('employees')
+      .update({ role: roleVal })
+      .eq(isUuid ? 'id' : 'iqama_number', idOrIqama);
+
+    if (!error) {
+      setUsers(prev => prev.map(u => (u.id === idOrIqama || u.iqama_number === idOrIqama) ? {
+        ...u,
+        role: roleVal,
+        roles: { role_name: roleName }
+      } : u));
+      setUpdateMsg({ id: idOrIqama, text: `Role: ${roleName.toUpperCase()}` });
+      notifyPermissionsChanged(idOrIqama);
+      setTimeout(() => setUpdateMsg(null), 3000);
+    } else {
+      alert('Error updating role: ' + error.message);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     const deptName = formatDepartment(u.departments?.name || u.department || 'N/A');
     const matchesFilter = activeFilter === 'All' || deptName === activeFilter;
     const q = searchQuery.toLowerCase().trim();
+    const roleName = (u.roles?.role_name || u.role || '').toLowerCase();
     const matchesSearch = !q ||
       (u.name && u.name.toLowerCase().includes(q)) ||
       (u.iqama_number && u.iqama_number.toLowerCase().includes(q)) ||
-      (u.email && u.email.toLowerCase().includes(q));
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (deptName && deptName.toLowerCase().includes(q)) ||
+      (roleName && roleName.includes(q)) ||
+      (u.job_title && u.job_title.toLowerCase().includes(q));
     return matchesFilter && matchesSearch;
   });
 
@@ -145,11 +246,11 @@ export default function UsersListPage(props: any) {
         .tab-btn.active { color: #4F5DFF; }
         .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: #4F5DFF; border-radius: 3px 3px 0 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        th, td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; text-align: left; }
-        th { background: #f8fafc; font-weight: 600; color: #0B1220; font-size: 0.9rem; }
+        th, td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 600; color: #0B1220; font-size: 0.88rem; }
         select { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; background: #fff; outline: none; }
         select:focus { border-color: #4F5DFF; }
-        .search-input { padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.9rem; outline: none; width: 240px; transition: all 0.2s; }
+        .search-input { height: 38px; padding: 0 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.9rem; outline: none; width: 240px; transition: all 0.2s; box-sizing: border-box; }
         .search-input:focus { border-color: #4F5DFF; box-shadow: 0 0 0 3px rgba(79, 93, 255, 0.1); }
       `}} />
 
@@ -225,17 +326,18 @@ export default function UsersListPage(props: any) {
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Iqama / Email</th>
-                <th>Department</th>
-                <th>Permission Level</th>
-                <th>Actions</th>
+                <th style={{ minWidth: '180px' }}>Name &amp; Title</th>
+                <th style={{ minWidth: '150px' }}>Iqama / Email</th>
+                <th style={{ minWidth: '140px' }}>Department</th>
+                <th style={{ minWidth: '140px' }}>System Role</th>
+                <th style={{ minWidth: '160px' }}>Permission Level</th>
+                <th style={{ minWidth: '220px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: "40px", textAlign: "center", position: "relative", height: "300px" }}>
+                  <td colSpan={6} style={{ padding: "40px", textAlign: "center", position: "relative", height: "300px" }}>
                     <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
                       <div className="loader" style={{ width: "120px", transform: "scale(0.8)" }}>
                         <div className="logo-layer logo-dim"></div>
@@ -251,16 +353,18 @@ export default function UsersListPage(props: any) {
                   <UserTableRow
                     key={user.iqama_number || user.id}
                     user={user}
+                    rolesList={rolesList}
                     updateMsg={updateMsg}
                     formatDepartment={formatDepartment}
                     onUpdateStatus={updateStatus}
+                    onUpdateRole={updateRole}
                     onAssignAsNurse={assignAsNurse}
                     onDeleteUser={deleteUser}
                   />
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                  <td colSpan={6} style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
                     No users found matching current filters.
                   </td>
                 </tr>

@@ -5,10 +5,16 @@ import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from '../documentation.module.css';
 
+import {
+  getDocTypesCache,
+  setDocTypesCache,
+  prependRecordToCache
+} from '../docCache';
+
 export default function NewDocumentationRequest() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [docServices, setDocServices] = useState<any[]>([]);
+  const [docServices, setDocServices] = useState<any[]>(() => getDocTypesCache() || []);
   const [customers, setCustomers] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
@@ -20,24 +26,30 @@ export default function NewDocumentationRequest() {
 
   useEffect(() => {
     async function loadConfig() {
-      // Get General Service customers
-      const { data: s } = await supabaseAuth.from('services').select('id').eq('name', 'General Service').single();
-      if (s) {
-        const { data: c } = await supabaseAuth.from('customers').select('id, name, contact_number').eq('service', s.id);
-        const { data: existingRecords } = await supabaseAuth.from('general_service_records').select('customer_id');
-        
-        if (c) {
-          if (existingRecords) {
-            const existingIds = new Set(existingRecords.map(r => r.customer_id));
+      try {
+        const cachedTypes = getDocTypesCache();
+        const [sRes, dRes, recordsRes] = await Promise.all([
+          supabaseAuth.from('services').select('id').eq('name', 'General Service').single(),
+          !cachedTypes || cachedTypes.length === 0 ? supabaseAuth.from('doc_service_types').select('*') : Promise.resolve({ data: cachedTypes }),
+          supabaseAuth.from('general_service_records').select('customer_id')
+        ]);
+
+        if (dRes?.data) {
+          setDocServices(dRes.data);
+          setDocTypesCache(dRes.data);
+        }
+
+        const sId = sRes?.data?.id;
+        if (sId) {
+          const { data: c } = await supabaseAuth.from('customers').select('id, name, contact_number, nationality').eq('service', sId);
+          if (c) {
+            const existingIds = new Set((recordsRes?.data || []).map((r: any) => r.customer_id));
             setCustomers(c.filter(cust => !existingIds.has(cust.id)));
-          } else {
-            setCustomers(c);
           }
         }
+      } catch (err) {
+        console.error("Error loading config:", err);
       }
-      // Get doc service types
-      const { data: d } = await supabaseAuth.from('doc_service_types').select('*');
-      if (d) setDocServices(d);
     }
     loadConfig();
   }, []);
@@ -57,13 +69,21 @@ export default function NewDocumentationRequest() {
       if (formData.target_date) payload.target_date = formData.target_date;
       if (formData.remarks.trim()) payload.remarks = formData.remarks.trim();
 
-      const { error } = await supabaseAuth.from('general_service_records').insert([payload]);
+      const { data: inserted, error } = await supabaseAuth
+        .from('general_service_records')
+        .insert([payload])
+        .select('*, customers(id, name, contact_number, nationality)')
+        .single();
+
       if (error) throw error;
+
+      if (inserted) {
+        prependRecordToCache(inserted);
+      }
 
       router.push('/documentation');
     } catch (err: any) {
       alert('Error saving: ' + err.message);
-    } finally {
       setLoading(false);
     }
   };

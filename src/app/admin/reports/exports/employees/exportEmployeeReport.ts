@@ -1,27 +1,47 @@
 import { supabaseAuth } from '@/lib/supabase';
-import * as XLSX from 'xlsx';
 
 export async function getEmployeeReportData() {
-  const { data, error } = await supabaseAuth
-    .from('employee_salaries')
-    .select('month, basic_salary, advance_payment, deductions, net_salary, status, employee_iqama')
-    .order('month', { ascending: false });
+  const [salRes, empRes] = await Promise.all([
+    supabaseAuth
+      .from('employee_salaries')
+      .select('*')
+      .order('month', { ascending: false }),
+    supabaseAuth
+      .from('employees')
+      .select('id, name, iqama_number, department')
+  ]);
 
-  if (error || !data) {
-    console.error(error);
+  if (salRes.error || !salRes.data) {
+    console.error(salRes.error);
     alert('Failed to fetch employee salary data.');
     return;
   }
 
-  const exportData = data.map((sal: any) => ({
-    'Month': sal.month,
-    'Iqama Number': sal.employee_iqama,
-    'Basic Salary': sal.basic_salary,
-    'Advance Payment': sal.advance_payment,
-    'Deductions': sal.deductions,
-    'Net Salary': sal.net_salary,
-    'Payment Status': sal.status,
-  }));
+  const empMapById = new Map();
+  const empMapByIqama = new Map();
+  if (empRes.data) {
+    empRes.data.forEach((e: any) => {
+      empMapById.set(e.id, e);
+      empMapByIqama.set(e.iqama_number, e);
+    });
+  }
+
+  const exportData = salRes.data.map((sal: any) => {
+    const emp = (sal.employee_id && empMapById.get(sal.employee_id)) || empMapByIqama.get(sal.employee_iqama);
+
+    return {
+      'Month': sal.month,
+      'Employee Name': emp?.name || 'Unknown',
+      'Employee ID': emp?.id || sal.employee_id || 'N/A',
+      'Iqama Number': sal.employee_iqama || emp?.iqama_number || 'N/A',
+      'Department': emp?.department || 'N/A',
+      'Basic Salary': Number(sal.basic_salary || 0),
+      'Advance Payment': Number(sal.advance_payment || 0),
+      'Deductions': Number(sal.deductions || 0),
+      'Net Salary': Number(sal.net_salary || 0),
+      'Payment Status': sal.status || 'Pending',
+    };
+  });
 
   return exportData;
 }

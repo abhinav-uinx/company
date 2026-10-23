@@ -213,6 +213,7 @@ CREATE TABLE IF NOT EXISTS public.employee_attendance (
 -- 16. Employee Salaries Table
 CREATE TABLE IF NOT EXISTS public.employee_salaries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
     employee_iqama TEXT NOT NULL,
     month TEXT NOT NULL, -- e.g., '2026-09'
     basic_salary NUMERIC(10, 2) DEFAULT 0,
@@ -244,4 +245,5 @@ CREATE INDEX IF NOT EXISTS idx_active_sessions_active ON public.active_sessions(
 
 CREATE INDEX IF NOT EXISTS idx_attendance_employee_id_date ON public.employee_attendance(employee_id, date DESC);
 CREATE INDEX IF NOT EXISTS idx_attendance_iqama_date ON public.employee_attendance(employee_iqama, date DESC);
+CREATE INDEX IF NOT EXISTS idx_salaries_employee_id ON public.employee_salaries(employee_id);
 CREATE INDEX IF NOT EXISTS idx_salaries_iqama_month ON public.employee_salaries(employee_iqama, month);

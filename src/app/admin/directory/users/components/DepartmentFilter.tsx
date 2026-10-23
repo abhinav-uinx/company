@@ -25,8 +25,9 @@ export default function DepartmentFilter({
         style={{
           background: '#fff',
           border: '1px solid #e2e8f0',
-          padding: '8px 14px',
-          borderRadius: '8px',
+          height: '38px',
+          padding: '0 14px',
+          borderRadius: '6px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -35,6 +36,7 @@ export default function DepartmentFilter({
           fontWeight: 500,
           color: '#0B1220',
           fontSize: '0.9rem',
+          boxSizing: 'border-box',
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}
       >

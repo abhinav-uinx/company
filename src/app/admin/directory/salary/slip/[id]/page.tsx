@@ -21,9 +21,23 @@ export default function SalarySlipPage() {
     if (salaryData) {
       setSlip(salaryData);
       
-      // 2. Fetch Employee Record
-      const { data: empData } = await supabaseAuth.from('employees').select('*').eq('iqama_number', salaryData.employee_iqama).single();
-      if (empData) setEmployee(empData);
+      // 2. Fetch Employee Record (try employee_id first, then fallback to employee_iqama)
+      let emp: any = null;
+      if (salaryData.employee_id) {
+        const { data: empById } = await supabaseAuth.from('employees').select('*').eq('id', salaryData.employee_id).single();
+        emp = empById;
+      }
+      if (!emp && salaryData.employee_iqama) {
+        const { data: empByIqama } = await supabaseAuth.from('employees').select('*').eq('iqama_number', salaryData.employee_iqama).single();
+        emp = empByIqama;
+      }
+      if (emp) {
+        setEmployee(emp);
+        // Background link employee_id if not linked yet
+        if (!salaryData.employee_id && emp.id) {
+          supabaseAuth.from('employee_salaries').update({ employee_id: emp.id }).eq('id', id).then(() => {});
+        }
+      }
     }
   }
 
@@ -75,12 +89,12 @@ export default function SalarySlipPage() {
             <table style={{ width: '100%', fontSize: '0.9rem' }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: '6px 0', color: '#64748b', width: '100px' }}>Name:</td>
+                  <td style={{ padding: '6px 0', color: '#64748b', width: '110px' }}>Name:</td>
                   <td style={{ padding: '6px 0', fontWeight: 600 }}>{employee?.name || 'Unknown Employee'}</td>
                 </tr>
                 <tr>
                   <td style={{ padding: '6px 0', color: '#64748b' }}>Iqama / ID:</td>
-                  <td style={{ padding: '6px 0', fontWeight: 600 }}>{slip.employee_iqama}</td>
+                  <td style={{ padding: '6px 0', fontWeight: 600 }}>{slip.employee_iqama || employee?.iqama_number || '-'}</td>
                 </tr>
                 <tr>
                   <td style={{ padding: '6px 0', color: '#64748b' }}>Email:</td>

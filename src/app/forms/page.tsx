@@ -55,9 +55,8 @@ export default function FormsPage() {
       <style dangerouslySetInnerHTML={{ __html: `
         .forms-container { max-width: 1300px; margin: 0 auto; padding: 40px 20px; }
         .forms-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding-bottom: 10px; }
-        .forms-header h1 { font-family: 'Manrope', sans-serif; font-size: 2.2rem; color: #0f172a; font-weight: 800; margin: 0; }
-        .back-btn { display: inline-flex; align-items: center; gap: 8px; color: #3b82f6; text-decoration: none; font-weight: 600; margin-bottom: 15px; font-size: 0.95rem; }
-        .back-btn:hover { text-decoration: underline; }
+        .back-btn { text-decoration: none; color: #334155; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 12px 6px 8px; display: inline-flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; margin-bottom: 10px; }
+        .back-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
         
         /* Tabs */
         .tabs-nav { display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px; }

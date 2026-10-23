@@ -8,11 +8,12 @@ import TableSkeleton from '@/components/TableSkeleton';
 import LoadingIcon from '@/components/LoadingIcon';
 import { useAuth } from '@/components/AuthGuard';
 import { MissionDetailsModal, PendingReasonsModal } from './components';
+import { getCachedData, setCachedData } from '@/lib/appDataCache';
 
 export default function EscortsList() {
   const { role, isFolderAllowed } = useAuth();
-  const [missions, setMissions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [missions, setMissions] = useState<any[]>(() => getCachedData('escort_missions') || []);
+  const [loading, setLoading] = useState<boolean>(() => !getCachedData('escort_missions')?.length);
   const [errorMsg, setErrorMsg] = useState('');
   const [viewMission, setViewMission] = useState<any>(null);
   
@@ -23,28 +24,37 @@ export default function EscortsList() {
 
   useEffect(() => {
     if (role === 'admin' || isFolderAllowed('escorts')) {
-      fetchMissions();
+      const hasData = (getCachedData('escort_missions')?.length || 0) > 0;
+      fetchMissions(!hasData);
     }
   }, [role, isFolderAllowed]);
 
-  async function fetchMissions() {
-    setLoading(true);
-    const { data, error } = await supabaseAuth
-      .from('escort_missions')
-      .select('*, customers!customer_id(name, current_hospital, passport)')
-      .order('created_at', { ascending: false });
-    
-    if (data) {
-      const empRes = await supabaseAuth.from('employees').select('iqama_number, name');
-      const empMap: Record<string, string> = {};
-      if (empRes.data) empRes.data.forEach(e => empMap[e.iqama_number] = e.name);
-      const mapped = data.map(d => ({...d, employee_name: empMap[d.escort_employee_iqama]}));
-      setMissions(mapped);
-    } else {
-      console.error(error);
-      if (error) setErrorMsg(error.message);
+  async function fetchMissions(showSpinner = false) {
+    if (showSpinner) setLoading(true);
+    try {
+      const [missionsRes, empRes] = await Promise.all([
+        supabaseAuth
+          .from('escort_missions')
+          .select('*, customers!customer_id(name, current_hospital, passport)')
+          .order('created_at', { ascending: false }),
+        supabaseAuth.from('employees').select('iqama_number, name')
+      ]);
+
+      if (missionsRes.data) {
+        const empMap: Record<string, string> = {};
+        if (empRes.data) empRes.data.forEach((e: any) => empMap[e.iqama_number] = e.name);
+        const mapped = missionsRes.data.map((d: any) => ({...d, employee_name: empMap[d.escort_employee_iqama]}));
+        setMissions(mapped);
+        setCachedData('escort_missions', mapped);
+      } else if (missionsRes.error) {
+        console.error(missionsRes.error);
+        setErrorMsg(missionsRes.error.message);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const getStatusClass = (status: string) => {
@@ -115,7 +125,7 @@ export default function EscortsList() {
     <>
       <div className={styles.container}>
         <Link href="/dashboard" className={styles.backBtn}>
-          <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
         </Link>
         
         <div className={styles.header}>
@@ -194,8 +204,14 @@ export default function EscortsList() {
                           }
                           
                           setViewMission((prev: any) => ({ ...prev, passport_files, medif_files }));
-                        }} style={{ color: '#0f172a', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View</button>
-                        <Link href={`/escorts/${mission.id}`} style={{ color: '#2563eb', fontWeight: 500, textDecoration: 'none' }}>Edit</Link>
+                        }} style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12.5px', fontWeight: 500 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#64748b' }}>visibility</span>
+                          View
+                        </button>
+                        <Link href={`/escorts/${mission.id}`} style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12.5px', fontWeight: 500, textDecoration: 'none' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>edit</span>
+                          Edit
+                        </Link>
                       </div>
                     </td>
                   </tr>

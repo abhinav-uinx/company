@@ -24,8 +24,15 @@ export default function CustomerProfileModal({
   if (!viewCustomer) return null;
 
   const customerServiceNames: string[] = (() => {
-    if (Array.isArray(viewCustomer?.services) && viewCustomer.services.length > 0) {
-      return viewCustomer.services
+    let rawServices = viewCustomer?.services || viewCustomer?.doctor_reports_urls;
+    if (typeof rawServices === 'string') {
+      try {
+        const parsed = JSON.parse(rawServices);
+        if (Array.isArray(parsed)) rawServices = parsed;
+      } catch {}
+    }
+    if (Array.isArray(rawServices) && rawServices.length > 0) {
+      return rawServices
         .map((sId: string) => services?.find(s => s.id === sId)?.name)
         .filter(Boolean);
     }

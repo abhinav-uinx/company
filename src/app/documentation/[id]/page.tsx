@@ -1,59 +1,100 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from '../documentation.module.css';
 
+import {
+  getGeneralServicesCache,
+  getDocTypesCache,
+  setDocTypesCache,
+  updateRecordInCache
+} from '../docCache';
+
 export default function EditDocumentationRequest({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [docServices, setDocServices] = useState<any[]>([]);
   
-  const [record, setRecord] = useState<any>(null);
+  const [record, setRecord] = useState<any>(() => {
+    return getGeneralServicesCache()?.find((r) => r.id === params.id) || null;
+  });
+  const [docServices, setDocServices] = useState<any[]>(() => {
+    return getDocTypesCache() || [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    const r = getGeneralServicesCache()?.find((item) => item.id === params.id);
+    const d = getDocTypesCache();
+    return !r || !d || d.length === 0;
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadData() {
-      const [rRes, dRes] = await Promise.all([
-        supabaseAuth
-          .from('general_service_records')
-          .select('*, customers(name)')
-          .eq('id', params.id)
-          .single(),
-        supabaseAuth.from('doc_service_types').select('*')
-      ]);
+      try {
+        const cachedTypes = getDocTypesCache();
+        const [rRes, dRes] = await Promise.all([
+          supabaseAuth
+            .from('general_service_records')
+            .select('*, customers(name)')
+            .eq('id', params.id)
+            .single(),
+          !cachedTypes || cachedTypes.length === 0
+            ? supabaseAuth.from('doc_service_types').select('*')
+            : Promise.resolve({ data: cachedTypes })
+        ]);
 
-      if (rRes.data) setRecord(rRes.data);
-      if (dRes.data) setDocServices(dRes.data);
-      setLoading(false);
+        if (rRes?.data) setRecord(rRes.data);
+        if (dRes?.data) {
+          setDocServices(dRes.data);
+          setDocTypesCache(dRes.data);
+        }
+      } catch (err) {
+        console.error("Error refreshing edit data:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    if (params.id) loadData();
+    loadData();
   }, [params.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const dbStatus = record.status === 'Done' ? 'Completed' : (record.status || 'Pending');
       const payload = {
         service_ids: record.service_ids,
-        status: record.status,
+        status: dbStatus,
         target_date: record.target_date || null,
         remarks: record.remarks || ''
       };
+
+      // Instantly update cache so table reflects edits immediately
+      updateRecordInCache(params.id, {
+        ...payload,
+        status: dbStatus
+      });
+
       const { error } = await supabaseAuth.from('general_service_records').update(payload).eq('id', params.id);
       if (error) throw error;
       
+      // Fast navigation without sluggish router.refresh()
       router.push('/documentation');
-      router.refresh(); // force clear Next.js cache
     } catch (err: any) {
       alert("Error saving: " + err.message);
-    } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className={styles.container}>Loading...</div>;
+  if (loading && !record) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+          Preparing editor...
+        </div>
+      </div>
+    );
+  }
   if (!record) return <div className={styles.container}>Record not found.</div>;
 
   return (
@@ -99,11 +140,12 @@ export default function EditDocumentationRequest({ params }: { params: { id: str
 
           <div className={styles.formGroup}>
             <label>Status</label>
-            <select value={record.status} onChange={(e) => setRecord({...record, status: e.target.value})}>
+            <select 
+              value={record.status === 'Completed' || record.status === 'Done' ? 'Done' : 'Pending'} 
+              onChange={(e) => setRecord({...record, status: e.target.value})}
+            >
               <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="Done">Done</option>
             </select>
           </div>
 

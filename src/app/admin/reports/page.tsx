@@ -23,7 +23,7 @@ export default function ReportsDashboard() {
         supabaseAuth.from('customers').select('id', { count: 'exact', head: true }),
         supabaseAuth.from('escort_missions').select('id', { count: 'exact', head: true }).eq('status', 'In-Transit'),
         supabaseAuth.from('invoices').select('total_amount').eq('status', 'Paid'),
-        supabaseAuth.from('general_service_records').select('id', { count: 'exact', head: true }).in('status', ['Applied', 'In Process'])
+        supabaseAuth.from('general_service_records').select('id', { count: 'exact', head: true }).in('status', ['Applied', 'In Process', 'Pending', 'In Progress'])
       ]);
 
       const rev = iRes.data ? iRes.data.reduce((acc, curr) => acc + (curr.total_amount || 0), 0) : 0;
@@ -44,8 +44,8 @@ export default function ReportsDashboard() {
       <Header />
       <div className={styles.container}>
         <Link href="/admin/dashboard" className={styles.backBtn}>
-        <span className="material-symbols-outlined">arrow_back</span> Back to Dashboard
-      </Link>
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
+        </Link>
       
       <div className={styles.header}>
         <h1 className={styles.title}>Cloud Admin Reports & Analytics</h1>

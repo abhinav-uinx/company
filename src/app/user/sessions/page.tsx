@@ -72,20 +72,9 @@ export default function UserSessionsPage() {
         </div>
         <Link
           href="/user/dashboard"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            color: '#4F5DFF',
-            textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: '14px',
-            background: '#EEF1FF',
-            padding: '8px 16px',
-            borderRadius: '8px'
-          }}
+          className="back-btn"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span> Back to Dashboard
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
         </Link>
       </div>
 
