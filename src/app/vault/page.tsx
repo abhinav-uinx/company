@@ -269,6 +269,8 @@ export default function Vault() {
     });
   }, [processedCustomers, search, serviceFilter, paymentFilter]);
 
+  const isFiltered = Boolean(search.trim() || serviceFilter !== 'all' || paymentFilter !== 'all');
+
   // Open Full Customer Dossier
   const handleOpenCustomer = async (cust: any) => {
     const mFiles = medifMap[cust.id] || cust.medifFiles || [];
@@ -406,11 +408,17 @@ export default function Vault() {
 
         /* Search & Filters */
         .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-        .search-box { position: relative; flex: 1; min-width: 280px; max-width: 480px; }
-        .search-box input { width: 100%; padding: 10px 14px 10px 38px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .search-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; max-width: 620px; }
+        .search-box { position: relative; flex: 1; min-width: 180px; }
+        .search-box input { width: 100%; height: 42px; padding: 0 14px 0 38px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; background: #ffffff; }
         .search-box input:focus { border-color: #4F5DFF; box-shadow: 0 0 0 3px rgba(79, 93, 255, 0.15); }
         .search-box .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 20px; pointer-events: none; }
-        .select-filter { padding: 9px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-size: 13px; font-weight: 500; color: #334155; outline: none; cursor: pointer; }
+        .vault-total-box { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); flex-shrink: 0; user-select: none; white-space: nowrap; transition: all 0.2s ease; box-sizing: border-box; }
+        .vault-total-box:hover { border-color: #cbd5e1; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06); }
+        .vault-total-label { font-size: 13px; font-weight: 700; color: #475569; letter-spacing: 0.01em; }
+        .vault-total-badge { background: #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 800; padding: 3px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-flex; align-items: baseline; }
+        .vault-total-sub { font-size: 11px; font-weight: 600; color: #64748b; margin-left: 3px; }
+        .select-filter { height: 42px; padding: 0 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-size: 13px; font-weight: 500; color: #334155; outline: none; cursor: pointer; box-sizing: border-box; }
 
         /* Table */
         .table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
@@ -460,313 +468,25 @@ export default function Vault() {
           to { opacity: 1; }
         }
 
-        .modal-card {
-          background: #ffffff;
-          border-radius: 20px;
-          width: 100%;
-          max-width: 980px;
-          height: 90vh;
-          max-height: 860px;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
-          animation: modalZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-          position: relative;
-        }
-        @keyframes modalZoomIn {
-          from { opacity: 0; transform: scale(0.97) translateY(8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
         @keyframes zoomIn {
           from { opacity: 0; transform: scale(0.97) translateY(8px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        .modal-header {
-          padding: 18px 26px;
-          background: linear-gradient(135deg, #0B1220 0%, #172338 100%);
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-shrink: 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        /* Sticky Subnav Bar with Tabs */
-        .modal-subnav {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          background: #ffffff;
-          border-bottom: 1px solid #e2e8f0;
-          padding: 8px 24px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-shrink: 0;
-          box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.04);
-        }
-        .subnav-tabs {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          overflow-x: auto;
-          white-space: nowrap;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-          padding: 2px 0;
-          width: 100%;
-        }
-        .subnav-tabs::-webkit-scrollbar {
-          display: none;
-        }
-        .subnav-tab-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          border-radius: 8px;
-          font-size: 12px;
-          font-weight: 600;
-          color: #64748b;
-          background: transparent;
-          border: 1px solid transparent;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          user-select: none;
-          flex-shrink: 0;
-        }
-        .subnav-tab-btn:hover {
-          color: #0f172a;
-          background: #f1f5f9;
-        }
-        .subnav-tab-btn.active {
-          color: #4F5DFF;
-          background: #EEF1FF;
-          border-color: #c7d2fe;
-        }
-        .subnav-tab-btn .material-symbols-outlined {
-          font-size: 16px;
-        }
-        .subnav-tab-badge {
-          font-size: 11px;
-          font-weight: 700;
-          padding: 1px 6px;
-          border-radius: 999px;
-          background: #e2e8f0;
-          color: #475569;
-        }
-        .subnav-tab-btn.active .subnav-tab-badge {
-          background: #4F5DFF;
-          color: #ffffff;
-        }
-
-        /* Modal Body & Custom Professional Scrollbar */
-        .modal-body {
-          padding: 22px 28px 48px;
-          overflow-y: auto;
-          overflow-x: hidden;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-          background: #f8fafc;
-          scroll-behavior: smooth;
-          overscroll-behavior: contain;
-          scrollbar-width: thin;
-          scrollbar-color: #cbd5e1 transparent;
-          position: relative;
-        }
-        .modal-body::-webkit-scrollbar {
-          width: 7px;
-        }
-        .modal-body::-webkit-scrollbar-track {
-          background: transparent;
-          margin: 6px 0;
-        }
-        .modal-body::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 999px;
-          border: 1px solid #f8fafc;
-        }
-        .modal-body::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-
-        /* Refined Human-Crafted Cards */
-        .modal-section {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 20px 22px;
-          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
-          transition: border-color 0.15s ease;
-          scroll-margin-top: 10px;
-        }
-        .modal-section:hover {
-          border-color: #cbd5e1;
-        }
-
-        .section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #f1f5f9;
-        }
-        .section-header-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .section-icon-box {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid;
-          flex-shrink: 0;
-        }
-        .section-icon-box .material-symbols-outlined {
-          font-size: 20px;
-        }
-        .section-title-wrap {
-          display: flex;
-          flex-direction: column;
-        }
-        .section-main-title {
-          margin: 0;
-          font-size: 15px;
-          font-weight: 700;
-          color: #0f172a;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .section-sub-desc {
-          margin: 2px 0 0 0;
-          font-size: 12px;
-          color: #64748b;
-        }
-
-        /* Financial KPI Grid */
-        .financial-kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-        .kpi-card {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 12px 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .kpi-label {
-          font-size: 11px;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .kpi-value {
-          font-size: 17px;
-          font-weight: 700;
-        }
-        .text-slate { color: #0f172a; }
-        .text-emerald { color: #059669; }
-        .text-rose { color: #e11d48; }
-
-        /* General Info Grid */
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 12px;
-        }
-        .info-item {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          background: #f8fafc;
-          padding: 10px 12px;
-          border-radius: 8px;
-          border: 1px solid #f1f5f9;
-        }
-        .info-label {
-          font-size: 11px;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .info-val {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #0f172a;
-          word-break: break-word;
-        }
-        .info-val.mono {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          letter-spacing: 0.02em;
-        }
-
-        /* Floating Back to Top Button */
-        .back-to-top-btn {
-          position: absolute;
-          bottom: 24px;
-          right: 24px;
-          z-index: 40;
-          background: #0f172a;
-          color: #ffffff;
-          border: none;
-          border-radius: 999px;
-          padding: 8px 14px;
-          font-size: 12px;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          cursor: pointer;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-          animation: modalFadeIn 0.2s ease;
-          transition: transform 0.15s ease, background 0.15s ease;
-        }
-        .back-to-top-btn:hover {
-          background: #1e293b;
-          transform: translateY(-2px);
-        }
-
-        /* Modal Footer */
-        .modal-footer {
-          padding: 14px 26px;
-          background: #ffffff;
-          border-top: 1px solid #e2e8f0;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-shrink: 0;
-          box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.04);
-        }
-
         /* Media queries */
         @media (max-width: 768px) {
-          .vault-page { padding: 20px 12px; }
-          .modal-card { max-height: 95vh; height: 95vh; border-radius: 14px; }
-          .modal-header { padding: 14px 18px; }
-          .modal-subnav { padding: 8px 14px; }
-          .modal-body { padding: 16px 14px 36px; }
-          .modal-footer { padding: 12px 16px; flex-direction: column; gap: 10px; align-items: stretch; }
-          .info-grid { grid-template-columns: 1fr; }
-          .financial-kpi-grid { grid-template-columns: 1fr 1fr; }
+          .vault-page { padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important; }
+          .vault-top h1 { font-size: 22px !important; margin-top: 8px !important; }
+          .filter-bar { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+          .search-group { width: 100% !important; max-width: 100% !important; display: flex !important; gap: 8px !important; }
+          .search-box { min-width: 0 !important; max-width: none !important; width: 100% !important; flex: 1 !important; }
+          .vault-total-box { height: 40px !important; padding: 0 10px !important; }
+          .vault-total-label { font-size: 12px !important; }
+          .vault-total-badge { font-size: 13px !important; padding: 2px 7px !important; }
+          .filter-bar > div:last-child { width: 100% !important; display: flex !important; gap: 8px !important; }
+          .select-filter { flex: 1 !important; width: 100% !important; font-size: 12px !important; padding: 8px 10px !important; height: 38px !important; }
+          .vault-table th, .vault-table td { padding: 10px 12px !important; font-size: 13px !important; }
+          .vault-table { min-width: 820px !important; }
         }
       `}} />
 
@@ -788,14 +508,34 @@ export default function Vault() {
 
         {/* Filter Bar */}
         <div className="filter-bar">
-          <div className="search-box">
-            <span className="material-symbols-outlined search-icon">search</span>
-            <input
-              type="text"
-              placeholder="Search by Customer Name, Iqama, Passport No, MEDIF..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="search-group">
+            <div className="search-box">
+              <span className="material-symbols-outlined search-icon">search</span>
+              <input
+                type="text"
+                placeholder="Search by Customer Name, Iqama, Passport No, MEDIF..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div
+              className="vault-total-box"
+              id="vault-total-box"
+              title={isFiltered ? `Showing ${filteredCustomers.length} of ${processedCustomers.length} total dossiers` : `Total ${processedCustomers.length} dossiers in vault`}
+            >
+              <span className="vault-total-label">Total:</span>
+              <span className="vault-total-badge">
+                {loading ? '...' : (
+                  <>
+                    {filteredCustomers.length}
+                    {isFiltered && (
+                      <span className="vault-total-sub">/{processedCustomers.length}</span>
+                    )}
+                  </>
+                )}
+              </span>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

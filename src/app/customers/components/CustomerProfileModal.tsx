@@ -44,42 +44,75 @@ export default function CustomerProfileModal({
   })();
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
-      <div
-        style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
-        className="hide-scrollbar"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#ffffff', zIndex: 10 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>{viewCustomer.name}</h2>
-              {customerServiceNames.map((name, i) => (
-                <span key={i} style={{
-                  background: name === 'Medical Escort' ? '#e0e7ff' : '#e0f2fe',
-                  color: name === 'Medical Escort' ? '#4338ca' : '#0369a1',
-                  border: name === 'Medical Escort' ? '1px solid #c7d2fe' : '1px solid #bae6fd',
-                  padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600
-                }}>
-                  {name}
-                </span>
-              ))}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 640px) {
+          .profile-modal-overlay {
+            padding: 8px !important;
+          }
+          .profile-modal-container {
+            max-height: 95vh !important;
+            border-radius: 14px !important;
+            width: 100% !important;
+          }
+          .profile-modal-header {
+            padding: 14px 16px !important;
+          }
+          .profile-modal-body {
+            padding: 14px 12px !important;
+          }
+          .profile-grid-2col {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+          }
+          .profile-modal-footer {
+            padding: 12px 14px !important;
+            gap: 8px !important;
+          }
+          .profile-modal-footer > * {
+            flex: 1 !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+        }
+      `}} />
+      <div className="profile-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+        <div
+          style={{ background: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}
+          className="profile-modal-container hide-scrollbar"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="profile-modal-header" style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#ffffff', zIndex: 10 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>{viewCustomer.name}</h2>
+                {customerServiceNames.map((name, i) => (
+                  <span key={i} style={{
+                    background: name === 'Medical Escort' ? '#e0e7ff' : '#e0f2fe',
+                    color: name === 'Medical Escort' ? '#4338ca' : '#0369a1',
+                    border: name === 'Medical Escort' ? '1px solid #c7d2fe' : '1px solid #bae6fd',
+                    padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600
+                  }}>
+                    {name}
+                  </span>
+                ))}
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b' }}>Customer Profile</p>
             </div>
-            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#64748b' }}>Customer Profile</p>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+              title="Close (Esc)"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
-            title="Close (Esc)"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
-          </button>
-        </div>
 
-        <div style={{ padding: '24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          <div className="profile-modal-body" style={{ padding: '24px' }}>
+            <div className="profile-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
             <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#334155', fontWeight: 600 }}>
                 <span className="material-symbols-outlined" style={{ color: '#3b82f6', fontSize: '20px' }}>badge</span>
@@ -222,12 +255,16 @@ export default function CustomerProfileModal({
           )}
         </div>
         
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
-          <Link href={`/customers/${viewCustomer.id}`} style={{ background: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
+        <div className="profile-modal-footer" style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#f8fafc', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+          <Link href={`/customers/${viewCustomer.id}`} style={{ background: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', textDecoration: 'none', fontSize: '13px' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit</span> Edit Customer
           </Link>
+          <button type="button" onClick={onClose} style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+            Close
+          </button>
         </div>
       </div>
     </div>
+  </>
   );
 }

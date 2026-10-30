@@ -48,7 +48,8 @@ export default function AddEmployee(props: any) {
       department_id: newDeptId || null,
       department: newDeptId || null,
       status: newPermission,
-      role: selectedRole || null
+      role: selectedRole || null,
+      must_change_password: true
     }]);
 
     if (error) {

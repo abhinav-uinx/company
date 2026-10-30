@@ -4,86 +4,193 @@ import { cookies, headers } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
 import { supabaseAdmin } from '@/lib/supabase';
 import { UAParser } from 'ua-parser-js';
+import { hashPassword, verifyPassword, isBcryptHash } from '@/lib/passwords';
+import { sanitizeIdentifier, validatePasswordNist } from '@/lib/security';
+import { logSecurityEvent } from '@/lib/securityAudit';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+
+// Session idle inactivity timeout: 2 hours of inactivity (NIST SP 800-63B Section 7.2)
+const SESSION_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 // High-performance in-memory cache to prevent redundant DB round trips on every subrequest
 const sessionCache = new Map<string, { isActive: boolean; lastChecked: number; lastActiveUpdated: number }>();
 
 export async function login(inputVal: string, password: string) {
-  // Check rate limit first
-  const { data: attemptData } = await supabaseAdmin.from('login_attempts').select('*').eq('identifier', inputVal).single();
+  const headersList = headers();
+  const userAgent = headersList.get('user-agent') || 'Unknown';
+  let ipAddress = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || '127.0.0.1';
+  if (ipAddress.includes(',')) {
+    ipAddress = ipAddress.split(',')[0].trim();
+  }
+
+  // 1. Sanitize user identifier (NIST SP 800-53 SI-10)
+  const cleanIdentifier = sanitizeIdentifier(inputVal);
+  if (!cleanIdentifier || !password) {
+    return { success: false, error: 'Invalid credentials.' };
+  }
+
+  // 2. Check rate limit & lockout (NIST SP 800-63B Section 5.2.2)
+  const { data: attemptData } = await supabaseAdmin.from('login_attempts').select('*').eq('identifier', cleanIdentifier).single();
   
   if (attemptData && attemptData.lockout_until) {
-      const lockoutTime = new Date(attemptData.lockout_until).getTime();
-      const now = Date.now();
-      if (lockoutTime > now) {
-          return { success: false, error: 'Too many attempts. Account locked.', lockout_until: attemptData.lockout_until };
-      } else if (attemptData.attempts >= 10) {
-          await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
-      }
+    const lockoutTime = new Date(attemptData.lockout_until).getTime();
+    const now = Date.now();
+    if (lockoutTime > now) {
+      await logSecurityEvent({
+        eventType: 'AUTH_ACCOUNT_LOCKED',
+        severity: 'WARN',
+        actor: cleanIdentifier,
+        ipAddress,
+        userAgent,
+        details: { lockout_until: attemptData.lockout_until }
+      });
+      return {
+        success: false,
+        error: 'Too many failed attempts. Account temporarily locked for security.',
+        lockout_until: attemptData.lockout_until
+      };
+    } else if (attemptData.attempts >= 10) {
+      await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', cleanIdentifier);
+    }
   }
 
   try {
     const loginTime = new Date().toISOString();
 
-    // 1. Check Admins
-    let { data: adminMatch } = await supabaseAdmin.from('admins').select('*').eq('username', inputVal).eq('password', password).single();
+    // 3. Authenticate Admins (case-insensitive lookup by username or email)
+    let { data: adminMatch } = await supabaseAdmin.from('admins').select('*').eq('username', cleanIdentifier).single();
     if (!adminMatch) {
-      const res = await supabaseAdmin.from('admins').select('*').eq('email', inputVal).eq('password', password).single();
+      const res = await supabaseAdmin.from('admins').select('*').ilike('username', cleanIdentifier).single();
+      adminMatch = res.data;
+    }
+    if (!adminMatch) {
+      const res = await supabaseAdmin.from('admins').select('*').ilike('email', cleanIdentifier).single();
       adminMatch = res.data;
     }
 
-    if (adminMatch) {
-      if (adminMatch.status === 'disabled') {
-        return { success: false, error: 'Account disabled. Please contact admin.' };
-      }
-      if (attemptData && attemptData.attempts > 0) {
-        await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
-      }
+    if (adminMatch && adminMatch.password) {
+      const isPassValid = await verifyPassword(password, adminMatch.password);
+      if (isPassValid) {
+        if (adminMatch.status === 'disabled') {
+          await logSecurityEvent({
+            eventType: 'ACCESS_DENIED',
+            severity: 'WARN',
+            actor: adminMatch.username,
+            ipAddress,
+            userAgent,
+            details: { reason: 'Account disabled' }
+          });
+          return { success: false, error: 'Account disabled. Please contact admin.' };
+        }
 
-      // Record last_login in admins table with exact timestamp
-      await supabaseAdmin.from('admins').update({ last_login: loginTime }).eq('username', adminMatch.username);
+        // Auto-upgrade legacy plaintext password to bcrypt hash in DB
+        if (!isBcryptHash(adminMatch.password)) {
+          const hashed = await hashPassword(password);
+          await supabaseAdmin.from('admins').update({ password: hashed }).eq('username', adminMatch.username);
+        }
 
-      await createSession(adminMatch.username, 'admin', adminMatch.name || adminMatch.username);
-      return { success: true, role: 'admin' };
+        if (attemptData && attemptData.attempts > 0) {
+          await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', cleanIdentifier);
+        }
+
+        // Record last_login in admins table with exact timestamp
+        await supabaseAdmin.from('admins').update({ last_login: loginTime }).eq('username', adminMatch.username);
+
+        await logSecurityEvent({
+          eventType: 'AUTH_LOGIN_SUCCESS',
+          severity: 'INFO',
+          actor: adminMatch.username,
+          ipAddress,
+          userAgent,
+          details: { role: 'admin' }
+        });
+
+        await createSession(adminMatch.username, 'admin', adminMatch.name || adminMatch.username);
+        return { success: true, role: 'admin' };
+      }
     }
 
-    // 2. Check Employees
-    let { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', inputVal).eq('password', password).single();
+    // 4. Authenticate Employees (case-insensitive lookup by iqama_number or email)
+    let { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', cleanIdentifier).single();
     if (!empMatch) {
-      const res = await supabaseAdmin.from('employees').select('*').eq('email', inputVal).eq('password', password).single();
+      const res = await supabaseAdmin.from('employees').select('*').ilike('email', cleanIdentifier).single();
       empMatch = res.data;
     }
 
-    if (empMatch) {
-      if (empMatch.status === 'disabled') {
-        return { success: false, error: 'Account disabled. Please contact admin.' };
-      }
-      if (attemptData && attemptData.attempts > 0) {
-        await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', inputVal);
-      }
+    if (empMatch && empMatch.password) {
+      const isPassValid = await verifyPassword(password, empMatch.password);
+      if (isPassValid) {
+        if (empMatch.status === 'disabled') {
+          await logSecurityEvent({
+            eventType: 'ACCESS_DENIED',
+            severity: 'WARN',
+            actor: empMatch.iqama_number,
+            ipAddress,
+            userAgent,
+            details: { reason: 'Account disabled' }
+          });
+          return { success: false, error: 'Account disabled. Please contact admin.' };
+        }
 
-      // Record last_login in employees table with exact timestamp
-      await supabaseAdmin.from('employees').update({ last_login: loginTime }).eq('iqama_number', empMatch.iqama_number);
+        // Auto-upgrade legacy plaintext password to bcrypt hash in DB
+        if (!isBcryptHash(empMatch.password)) {
+          const hashed = await hashPassword(password);
+          await supabaseAdmin.from('employees').update({ password: hashed }).eq('id', empMatch.id);
+        }
 
-      if (empMatch.must_change_password) {
-        return { success: true, role: 'employee', mustChangePassword: true, identifier: empMatch.iqama_number, tempPassword: password };
+        if (attemptData && attemptData.attempts > 0) {
+          await supabaseAdmin.from('login_attempts').update({ attempts: 0, lockout_until: null }).eq('identifier', cleanIdentifier);
+        }
+
+        // Record last_login in employees table with exact timestamp
+        await supabaseAdmin.from('employees').update({ last_login: loginTime }).eq('iqama_number', empMatch.iqama_number);
+
+        await logSecurityEvent({
+          eventType: 'AUTH_LOGIN_SUCCESS',
+          severity: 'INFO',
+          actor: empMatch.iqama_number,
+          ipAddress,
+          userAgent,
+          details: { role: 'employee' }
+        });
+
+        if (empMatch.must_change_password) {
+          return { success: true, role: 'employee', mustChangePassword: true, identifier: empMatch.iqama_number, tempPassword: password };
+        }
+        await createSession(empMatch.iqama_number, 'employee', empMatch.name || empMatch.iqama_number);
+        return { success: true, role: 'employee' };
       }
-      await createSession(empMatch.iqama_number, 'employee', empMatch.name || empMatch.iqama_number);
-      return { success: true, role: 'employee' };
     }
 
-    // Handle Failure
+    // 5. Handle Authentication Failure (NIST SP 800-63B progressive backoff & uniform error)
     const currentAttempts = attemptData ? attemptData.attempts + 1 : 1;
-    const updates: any = { identifier: inputVal, attempts: currentAttempts, last_attempt: new Date().toISOString() };
+    const updates: any = { identifier: cleanIdentifier, attempts: currentAttempts, last_attempt: new Date().toISOString() };
     if (currentAttempts >= 10) {
-        updates.lockout_until = new Date(Date.now() + 60 * 1000).toISOString();
+      // 15-minute lockout compliant with NIST progressive lockout guidelines
+      updates.lockout_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      await logSecurityEvent({
+        eventType: 'AUTH_ACCOUNT_LOCKED',
+        severity: 'WARN',
+        actor: cleanIdentifier,
+        ipAddress,
+        userAgent,
+        details: { attempts: currentAttempts, lockout_minutes: 15 }
+      });
+    } else {
+      await logSecurityEvent({
+        eventType: 'AUTH_LOGIN_FAILURE',
+        severity: 'WARN',
+        actor: cleanIdentifier,
+        ipAddress,
+        userAgent,
+        details: { attempts: currentAttempts }
+      });
     }
     await supabaseAdmin.from('login_attempts').upsert([updates]);
     
     if (currentAttempts >= 10) {
-        return { success: false, error: 'Too many attempts. Account locked for 1 minute.', lockout_until: updates.lockout_until };
+      return { success: false, error: 'Too many attempts. Account locked for 15 minutes.', lockout_until: updates.lockout_until };
     }
     return { success: false, error: 'Invalid credentials. ' + (10 - currentAttempts) + ' attempts remaining.' };
 
@@ -100,6 +207,14 @@ export async function logout() {
       if (payload.session_id) {
         sessionCache.delete(payload.session_id as string);
         await supabaseAdmin.from('active_sessions').update({ is_active: false }).eq('id', payload.session_id);
+      }
+      if (payload.username) {
+        await logSecurityEvent({
+          eventType: 'AUTH_LOGOUT',
+          severity: 'INFO',
+          actor: payload.username as string,
+          details: { role: payload.role }
+        });
       }
     } catch (e) {
       // ignore token parse errors on logout
@@ -308,7 +423,7 @@ export async function getSession() {
             isActive = cached.isActive;
         } else {
             const { data: sessionRecord } = await supabaseAdmin.from('active_sessions')
-                .select('is_active')
+                .select('is_active, last_active')
                 .eq('id', sId)
                 .single();
                 
@@ -316,6 +431,23 @@ export async function getSession() {
                 sessionCache.delete(sId);
                 cookies().delete('session');
                 return null;
+            }
+
+            // Enforce idle inactivity timeout (NIST SP 800-63B Section 7.2)
+            if (sessionRecord.last_active) {
+                const lastActiveTime = new Date(sessionRecord.last_active).getTime();
+                if (now - lastActiveTime > SESSION_IDLE_TIMEOUT_MS) {
+                    sessionCache.delete(sId);
+                    await supabaseAdmin.from('active_sessions').update({ is_active: false }).eq('id', sId);
+                    cookies().delete('session');
+                    await logSecurityEvent({
+                        eventType: 'AUTH_SESSION_EXPIRED',
+                        severity: 'INFO',
+                        actor: (payload.username as string) || 'unknown',
+                        details: { reason: 'Idle timeout exceeded (NIST SP 800-63B)' }
+                    });
+                    return null;
+                }
             }
 
             isActive = true;
@@ -486,10 +618,85 @@ export async function getCurrentUserPermissions(): Promise<{
 }
 
 export async function updatePassword(identifier: string, oldPass: string, newPass: string) {
-    const { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', identifier).eq('password', oldPass).single();
-    if (!empMatch) return { success: false, error: 'Invalid credentials' };
-    
-    await supabaseAdmin.from('employees').update({ password: newPass, must_change_password: false }).eq('iqama_number', identifier);
-    await createSession(empMatch.iqama_number, 'employee', empMatch.name || empMatch.iqama_number);
-    return { success: true };
+    const cleanId = sanitizeIdentifier(identifier);
+    if (!cleanId) {
+      return { success: false, error: 'Invalid user identifier' };
+    }
+
+    // NIST SP 800-63B Section 5.1.1.2 Password Policy Validation
+    const validation = validatePasswordNist(newPass, cleanId);
+    if (!validation.isValid) {
+      return { success: false, error: validation.error || 'Password does not meet NIST security standards' };
+    }
+
+    if (oldPass && newPass.trim() === oldPass.trim()) {
+      return { success: false, error: 'New password cannot be identical to your current password' };
+    }
+
+    // 1. Try finding employee by iqama_number or email
+    let { data: empMatch } = await supabaseAdmin.from('employees').select('*').eq('iqama_number', cleanId).single();
+    if (!empMatch) {
+      const res = await supabaseAdmin.from('employees').select('*').eq('email', cleanId).single();
+      empMatch = res.data;
+    }
+
+    if (empMatch) {
+      const isOldValid = await verifyPassword(oldPass, empMatch.password);
+      if (!isOldValid) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+      const hashedNewPass = await hashPassword(newPass.trim());
+      const { error: updateErr } = await supabaseAdmin.from('employees').update({
+        password: hashedNewPass,
+        must_change_password: false
+      }).eq('id', empMatch.id);
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      await logSecurityEvent({
+        eventType: 'AUTH_PASSWORD_CHANGED',
+        severity: 'INFO',
+        actor: empMatch.iqama_number,
+        details: { role: 'employee' }
+      });
+
+      await createSession(empMatch.iqama_number, 'employee', empMatch.name || empMatch.iqama_number);
+      return { success: true };
+    }
+
+    // 2. Try finding admin by username or email
+    let { data: adminMatch } = await supabaseAdmin.from('admins').select('*').eq('username', cleanId).single();
+    if (!adminMatch) {
+      const res = await supabaseAdmin.from('admins').select('*').eq('email', cleanId).single();
+      adminMatch = res.data;
+    }
+
+    if (adminMatch) {
+      const isOldValid = await verifyPassword(oldPass, adminMatch.password);
+      if (!isOldValid) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+      const hashedNewPass = await hashPassword(newPass.trim());
+      const { error: updateErr } = await supabaseAdmin.from('admins').update({
+        password: hashedNewPass
+      }).eq('username', adminMatch.username);
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      await logSecurityEvent({
+        eventType: 'AUTH_PASSWORD_CHANGED',
+        severity: 'INFO',
+        actor: adminMatch.username,
+        details: { role: 'admin' }
+      });
+
+      await createSession(adminMatch.username, 'admin', adminMatch.name || adminMatch.username);
+      return { success: true };
+    }
+
+    return { success: false, error: 'Account not found' };
 }

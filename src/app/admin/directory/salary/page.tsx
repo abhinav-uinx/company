@@ -239,14 +239,15 @@ export default function SalaryPage(props: any) {
         </div>
       </div>
 
+      <div className="tableWrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
       <table
         style={{
           width: '100%',
+          minWidth: '700px',
           borderCollapse: 'collapse',
           background: '#fff',
           borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          overflow: 'hidden'
         }}
       >
         <thead>
@@ -420,6 +421,7 @@ export default function SalaryPage(props: any) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

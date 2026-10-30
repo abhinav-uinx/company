@@ -38,7 +38,7 @@ export default function DocumentationPage() {
       const [recRes, dRes] = await Promise.all([
         supabaseAuth
           .from('general_service_records')
-          .select('*, customers(id, name, contact_number, nationality)')
+          .select('*, customers(id, name, contact_number, iqama_number, nationality, passport_no, email, address)')
           .order('created_at', { ascending: false }),
         fetchTypes ? supabaseAuth.from('doc_service_types').select('*') : Promise.resolve({ data: cachedTypes })
       ]);
@@ -257,13 +257,16 @@ export default function DocumentationPage() {
         }
 
         @media (max-width: 768px) {
+          .doc-page-container { padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important; }
           .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
-          .table-container { border-radius: 8px; }
-          .data-table th, .data-table td { padding: 12px; font-size: 0.8rem; }
+          .page-header .btn-primary { width: 100% !important; justify-content: center !important; }
+          .table-container { border-radius: 8px; width: 100% !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+          .data-table { min-width: 680px !important; }
+          .data-table th, .data-table td { padding: 10px 12px; font-size: 0.8rem; }
         }
       `}</style>
       
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
+      <div className="doc-page-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
         <Link href="/dashboard" className="back-btn">
           <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
         </Link>
@@ -284,7 +287,7 @@ export default function DocumentationPage() {
               <tr>
                 <th>Customer Name</th>
                 <th>Nationality</th>
-                <th>Contact</th>
+                <th>Phone Number</th>
                 <th>Requested Documents</th>
                 <th>Status</th>
                 <th style={{ minWidth: '150px' }}>Actions</th>
@@ -296,7 +299,14 @@ export default function DocumentationPage() {
               ) : customers.length > 0 ? (
                 customers.map((rec: any) => (
                   <tr key={rec.id}>
-                    <td style={{ fontWeight: 500 }}>{rec.customers?.name || '-'}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      <div>{rec.customers?.name || '-'}</div>
+                      {rec.customers?.iqama_number && (
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace', marginTop: '2px' }}>
+                          Iqama: {rec.customers.iqama_number}
+                        </div>
+                      )}
+                    </td>
                     <td>{rec.customers?.nationality || '-'}</td>
                     <td>{rec.customers?.contact_number || '-'}</td>
                     <td>

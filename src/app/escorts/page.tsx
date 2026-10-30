@@ -84,8 +84,20 @@ export default function EscortsList() {
       setPendingReasonInput('');
       setShowPendingModal(true);
     } else {
-      await supabaseAuth.from('escort_missions').update({ status: newStatus }).eq('id', id);
-      fetchMissions();
+      // Optimistic update
+      setMissions(prev => {
+        const next = prev.map(m => m.id === id ? { ...m, status: newStatus } : m);
+        setCachedData('escort_missions', next);
+        return next;
+      });
+
+      try {
+        const { error } = await supabaseAuth.from('escort_missions').update({ status: newStatus }).eq('id', id);
+        if (error) throw error;
+      } catch (err: any) {
+        console.error('Failed to update status:', err);
+        fetchMissions(false);
+      }
     }
   };
 
@@ -95,12 +107,26 @@ export default function EscortsList() {
       finalReasons.push(pendingReasonInput.trim());
       setPendingReasonInput('');
     }
-    await supabaseAuth.from('escort_missions').update({ 
-      status: 'Pending', 
-      reasons: JSON.stringify(finalReasons) 
-    }).eq('id', pendingMissionId);
+    const reasonsStr = JSON.stringify(finalReasons);
+
+    // Optimistic update
+    setMissions(prev => {
+      const next = prev.map(m => m.id === pendingMissionId ? { ...m, status: 'Pending', reasons: reasonsStr } : m);
+      setCachedData('escort_missions', next);
+      return next;
+    });
     setShowPendingModal(false);
-    fetchMissions();
+
+    try {
+      const { error } = await supabaseAuth.from('escort_missions').update({ 
+        status: 'Pending', 
+        reasons: reasonsStr 
+      }).eq('id', pendingMissionId);
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Failed to save pending reasons:', err);
+      fetchMissions(false);
+    }
   };
 
   if (role === 'employee' && !isFolderAllowed('escorts')) {
@@ -155,22 +181,103 @@ export default function EscortsList() {
                 missions.map(mission => (
                   <tr key={mission.id}>
                     <td style={{ fontWeight: 500 }}>{mission.customers?.name || 'Unknown Customer'}</td>
-                    <td>{mission.from_country} {mission.layover_country ? 'â†’ ' + mission.layover_country + ' ' : ''}â†’ {mission.to_country}</td>
+                    <td>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: '#0f172a' }}>
+                        <span>{mission.from_country || '-'}</span>
+                        {mission.layover_country && (
+                          <>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#94a3b8' }}>arrow_forward</span>
+                            <span style={{ color: '#475569' }}>{mission.layover_country}</span>
+                          </>
+                        )}
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#94a3b8' }}>arrow_forward</span>
+                        <span>{mission.to_country || '-'}</span>
+                      </div>
+                    </td>
                     <td>{mission.flight_date || 'TBD'}</td>
                     <td>{mission.employee_name || mission.escort_employee_iqama || 'Unassigned'}</td>
                     <td>
-                      <select 
-                        value={mission.status || ''} 
-                        onChange={(e) => updateStatus(mission.id, e.target.value)}
-                        className={`${styles.statusBadge} ${getStatusClass(mission.status || '')}`}
-                        style={{ border: 'none', outline: 'none', cursor: 'pointer', appearance: 'none', paddingRight: '20px', width: '100%' }}
-                      >
-                        <option value="" disabled style={{background: 'white', color: 'black'}}>-- Status --</option>
-                        <option value="Pending" style={{background: 'white', color: 'black'}}>Pending</option>
-                        <option value="In-Transit" style={{background: 'white', color: 'black'}}>In-Transit</option>
-                        <option value="Completed" style={{background: 'white', color: 'black'}}>Completed</option>
-                        <option value="Returned" style={{background: 'white', color: 'black'}}>Returned</option>
-                      </select>
+                      {(() => {
+                        const statusVal = mission.status || 'Pending';
+                        const isPending = statusVal.startsWith('Pending');
+                        const isInTransit = statusVal === 'In-Transit';
+                        const isCompleted = statusVal === 'Completed';
+                        const isReturned = statusVal === 'Returned';
+
+                        let statusClass = styles.statusPending;
+                        let statusIcon: React.ReactNode = null;
+                        let displayLabel = 'Pending';
+
+                        if (isInTransit) {
+                          statusClass = styles.statusInTransit;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#2563eb' }}>flight_takeoff</span>;
+                          displayLabel = 'In-Transit';
+                        } else if (isCompleted) {
+                          statusClass = styles.statusCompleted;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#059669', fontVariationSettings: "'FILL' 1" }}>check_circle</span>;
+                          displayLabel = 'Completed';
+                        } else if (isReturned) {
+                          statusClass = styles.statusReturned;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#7c3aed' }}>flight_land</span>;
+                          displayLabel = 'Returned';
+                        } else {
+                          displayLabel = 'Pending';
+                        }
+
+                        let reasonCount = 0;
+                        if (mission.reasons) {
+                          try {
+                            const parsed = JSON.parse(mission.reasons);
+                            if (Array.isArray(parsed)) reasonCount = parsed.length;
+                            else if (parsed) reasonCount = 1;
+                          } catch {
+                            reasonCount = 1;
+                          }
+                        }
+
+                        return (
+                          <div
+                            className={`${styles.statusPill} ${statusClass}`}
+                            title={`Click to change status${isPending && reasonCount > 0 ? ` (${reasonCount} reason${reasonCount > 1 ? 's' : ''} recorded)` : ''}`}
+                          >
+                            {statusIcon}
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.01em', lineHeight: 1 }}>
+                              {displayLabel}
+                              {isPending && reasonCount > 0 ? ` (${reasonCount})` : ''}
+                            </span>
+                            <span
+                              className="material-symbols-outlined"
+                              style={{
+                                fontSize: '13px',
+                                opacity: 0.7,
+                                marginLeft: '0px'
+                              }}
+                            >
+                              expand_more
+                            </span>
+
+                            {/* Full-coverage native select overlay */}
+                            <select
+                              value={isInTransit ? 'In-Transit' : isCompleted ? 'Completed' : isReturned ? 'Returned' : 'Pending'}
+                              onChange={(e) => updateStatus(mission.id, e.target.value)}
+                              aria-label="Change status"
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                opacity: 0,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="In-Transit">In-Transit</option>
+                              <option value="Completed">Completed</option>
+                              <option value="Returned">Returned</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '10px' }}>

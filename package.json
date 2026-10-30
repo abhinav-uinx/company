@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
+    "bcryptjs": "^3.0.3",
     "docx": "^9.7.2",
     "jose": "^6.2.12",
     "js-cookie": "^3.0.8",
@@ -20,6 +21,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18",

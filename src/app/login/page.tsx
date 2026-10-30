@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import LoadingIcon from '@/components/LoadingIcon';
 import { login, updatePassword } from '@/app/actions/auth';
+import { validatePasswordNist } from '@/lib/security';
 
 function LoginContent() {
   const router = useRouter();
@@ -39,10 +40,8 @@ function LoginContent() {
   // 'idle' | 'authenticating' | 'done'
   const [phase, setPhase] = useState<'idle' | 'authenticating' | 'done'>('idle');
 
-  const isPassValid = (pass: string) => {
-    return pass.length >= 12 && (pass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length >= 3 && /[0-9]/.test(pass) && /[A-Z]/.test(pass);
-  };
-  const specCount = (pass: string) => (pass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length;
+  const isPassValid = (pass: string) => validatePasswordNist(pass, setupIdentifier).isValid;
+  const nistStatus = validatePasswordNist(newPass, setupIdentifier);
 
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -273,19 +272,43 @@ function LoginContent() {
                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                   />
                 </div>
-                <div style={{ marginBottom:'20px', fontSize: '0.8rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ color: newPass.length >= 12 ? '#10b981' : '#64748b' }}>
-                    {newPass.length >= 12 ? '✓' : '✗'} {newPass.length}/12 length
+                <div style={{ marginBottom:'18px', fontSize: '0.8125rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>NIST Security Standard:</span>
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: '0.75rem',
+                      color: nistStatus.score >= 3 ? '#16a34a' : nistStatus.score === 2 ? '#ca8a04' : '#dc2626'
+                    }}>
+                      {nistStatus.score >= 3 ? 'Strong' : nistStatus.score === 2 ? 'Fair' : newPass.length > 0 ? 'Weak' : 'Required'}
+                    </span>
                   </div>
-                  <div style={{ color: (newPass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length >= 3 ? '#10b981' : '#64748b' }}>
-                    {specCount(newPass) >= 3 ? '✓' : '✗'} {specCount(newPass)}/3 special character
+                  {/* Password strength bar */}
+                  <div style={{ height: '4px', width: '100%', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${(nistStatus.score / 4) * 100}%`,
+                      background: nistStatus.score >= 3 ? '#16a34a' : nistStatus.score === 2 ? '#eab308' : '#ef4444',
+                      transition: 'all 0.3s ease'
+                    }} />
                   </div>
-                  <div style={{ color: /[0-9]/.test(newPass) ? '#10b981' : '#64748b' }}>
-                    {/[0-9]/.test(newPass) ? '✓' : '✗'} numbers
+                  <div style={{ color: newPass.length >= 8 ? '#16a34a' : '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{newPass.length >= 8 ? '✓' : '○'}</span>
+                    <span>At least 8 characters (NIST SP 800-63B)</span>
                   </div>
-                  <div style={{ color: /[A-Z]/.test(newPass) ? '#10b981' : '#64748b' }}>
-                    {/[A-Z]/.test(newPass) ? '✓' : '✗'} caps character
+                  <div style={{ color: !nistStatus.error?.includes('common') ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{!nistStatus.error?.includes('common') && newPass.length >= 8 ? '✓' : '○'}</span>
+                    <span>Not in common/compromised password lists</span>
                   </div>
+                  <div style={{ color: !nistStatus.error?.includes('username') ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{!nistStatus.error?.includes('username') && newPass.length >= 8 ? '✓' : '○'}</span>
+                    <span>Does not contain username or ID</span>
+                  </div>
+                  {nistStatus.error && newPass.length > 0 && (
+                    <div style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '2px', fontStyle: 'italic' }}>
+                      ⚠ {nistStatus.error}
+                    </div>
+                  )}
                 </div>
                 {error && (
                   <div style={{ marginBottom:'16px', padding:'11px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', color:'#b91c1c', fontSize:'0.875rem', textAlign:'center' }}>
@@ -294,8 +317,8 @@ function LoginContent() {
                 )}
                 <button
                   type="submit"
-                  disabled={loading || !isPassValid(newPass)}
-                  style={{ width:'100%', padding:'13px', background: (loading || !isPassValid(newPass)) ? '#94a3b8' : '#1d3461', color:'#fff', border:'none', borderRadius:'8px', fontWeight:700, fontSize:'0.9375rem', cursor: 'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 14px rgba(13,43,107,0.3)' }}
+                  disabled={loading || !nistStatus.isValid}
+                  style={{ width:'100%', padding:'13px', background: (loading || !nistStatus.isValid) ? '#94a3b8' : '#1d3461', color:'#fff', border:'none', borderRadius:'8px', fontWeight:700, fontSize:'0.9375rem', cursor: (loading || !nistStatus.isValid) ? 'not-allowed' : 'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 14px rgba(13,43,107,0.3)' }}
                 >
                   {loading ? 'Updating...' : 'Set Password'}
                 </button>

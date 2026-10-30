@@ -274,78 +274,238 @@ body.view-admin .service-card.admin-only{display:flex;}
   .stat-divider{width:60%; height:1px;}
 }
 \n
-/* --- MOBILE RESPONSIVENESS INJECTED --- */
+/* --- MOBILE & PHONE RESPONSIVENESS --- */
 @media (max-width: 768px) {
-  .site-header { padding: 15px !important; }
-  .header-inner { flex-direction: column !important; align-items: flex-start !important; gap: 15px !important; }
-  .brand-word { font-size: 1.2rem !important; }
-  .brand-word span { font-size: 0.75rem !important; }
-  
-  /* Hide standard nav on mobile */
-  .header-inner nav { display: none !important; }
-  
-  /* User info styling */
-  .user-info { width: 100% !important; justify-content: flex-end !important; }
-  
-  /* Ensure topbar texts fit */
-  .topbar { font-size: 0.7rem !important; text-align: center !important; line-height: 1.3 !important; }
-  
-  /* Dashboard layout grids */
-  .service-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
-  .stat-bar { flex-direction: column !important; align-items: flex-start !important; padding: 15px !important; gap: 10px !important; }
-  .stat-item { width: 100% !important; justify-content: flex-start !important; }
-  .stat-divider { width: 100% !important; height: 1px !important; margin: 5px 0 !important; }
-  
-  .hero-copy h1 { font-size: 1.8rem !important; line-height: 1.2 !important; }
-  .hero-copy p { font-size: 1rem !important; }
-  .hero-section { padding: 20px !important; }
+  body {
+    background: #f8fafc !important;
+    padding-bottom: calc(75px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Header on Mobile: Compact single row with logo & profile */
+  .site-header {
+    padding: 10px 14px !important;
+  }
+  .header-inner {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  .brand img {
+    height: 30px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+  }
+  .brand-word {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .brand-word span {
+    font-size: 0.65rem !important;
+    display: block !important;
+  }
+
+  /* Hide desktop nav links on phones */
+  .header-inner nav {
+    display: none !important;
+  }
+
+  /* Compact User Info on Mobile */
+  .user-info {
+    width: auto !important;
+    justify-content: flex-end !important;
+    flex-shrink: 0 !important;
+    gap: 6px !important;
+  }
+  .user-name {
+    display: none !important;
+  }
+  .user-avatar {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  /* Topbar on phones */
+  .topbar {
+    font-size: 0.7rem !important;
+    padding: 6px 12px !important;
+    text-align: center !important;
+    line-height: 1.3 !important;
+    justify-content: center !important;
+  }
+
+  /* Dashboard Services Section */
+  .services {
+    padding: 16px 14px calc(80px + env(safe-area-inset-bottom)) !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+  }
+  .services-head {
+    margin-bottom: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .services-head h2 {
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+  }
+
+  /* Service Grid: 1 column on phones (<600px), 2 on phablets */
+  .service-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    background: transparent !important;
+  }
+
+  /* Polished Service Cards with Prominently Visible Action Button */
+  .service-card {
+    position: relative !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    min-height: 108px !important;
+    margin: 0 !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  .service-card:active {
+    transform: scale(0.985) !important;
+    border-color: #cbd5e1 !important;
+  }
+  .service-card h3 {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 8px 0 2px 0 !important;
+    padding-right: 44px !important;
+    line-height: 1.3 !important;
+  }
+  .service-card p {
+    font-size: 0.82rem !important;
+    color: #64748b !important;
+    margin: 0 !important;
+    padding-right: 44px !important;
+  }
+  .service-icon {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Dedicated, Always-Visible Action Arrow Button on Phone */
+  .service-open {
+    position: absolute !important;
+    top: 14px !important;
+    right: 14px !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: #f1f5f9 !important;
+    border: 1.5px solid #cbd5e1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+    align-self: auto !important;
+  }
+  .service-open span {
+    transform: none !important;
+    font-size: 20px !important;
+  }
+  .admin-tag {
+    position: absolute !important;
+    top: 16px !important;
+    right: 58px !important;
+  }
+
+  /* Universal Container Padding on Mobile */
+  .vault-container, .forms-container, .main-container {
+    padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important;
+    margin: 0 auto !important;
+  }
+
+  /* Universal Table Responsiveness across all screens */
+  .tableWrapper,
+  .table-container,
+  .card,
+  .table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    border-radius: 12px !important;
+  }
+  .data-table,
+  .vault-table,
+  .table {
+    min-width: 650px !important;
+    width: 100% !important;
+  }
+  .data-table th,
+  .data-table td,
+  .vault-table th,
+  .vault-table td,
+  .table th,
+  .table td {
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Universal Mobile Modal & Detail View Adjustment */
+  .modal-overlay,
+  div[style*="fixed"][style*="inset: 0"],
+  div[style*="position: fixed"][style*="backdropFilter"],
+  div[style*="position: fixed"][style*="backdrop-filter"] {
+    padding: 8px !important;
+  }
+  .modal-overlay > div,
+  div[style*="fixed"] > .hide-scrollbar,
+  div[style*="position: fixed"] > div[style*="border-radius: 16px"],
+  div[style*="position: fixed"] > div[style*="borderRadius: '16px'"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 94vh !important;
+    border-radius: 16px !important;
+  }
+
+  /* Buttons on Mobile */
+  .btn-table-action {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    min-height: 32px !important;
+  }
 }
 
-/* APP-LIKE MOBILE UI OVEWRRITES */
-@media (max-width: 768px) {
-  body { background: #fff !important; }
-  
-  /* Main containers */
-  .services, .vault-container, .forms-container, .main-container {
-    padding: 0 !important; margin: 0 !important;
-  }
-  
-  /* Header adjustments */
-  .vault-header, .forms-header {
-    padding: 20px !important;
-    margin-bottom: 0 !important;
-  }
-  .tabs-nav {
-    padding: 0 20px !important;
-    margin-bottom: 0 !important;
-    background: #fff;
-  }
-  
-  /* Content blocks / Floating boxes */
-  .tab-content, .login-box, .white-box {
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 20px !important;
-    border: none !important;
-    min-height: 100vh;
-  }
-  
-  /* Dashboard cards to list items */
-  .service-grid, .airlines-grid { 
-    gap: 0 !important; 
-    background: #fff;
-  }
-  .service-card, .airline-card {
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    margin: 0 !important;
-    padding: 20px !important;
-  }
-  .service-card:hover, .airline-card:hover {
-    transform: none !important;
-    box-shadow: none !important;
+/* Tablet view adjustment for service grid */
+@media (min-width: 540px) and (max-width: 900px) {
+  .service-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
   }
 }
 

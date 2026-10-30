@@ -50,39 +50,60 @@ export default function SessionsPage() {
     if (loading) return <LoadingIcon />;
 
     return (
-        <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+      <>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 640px) {
+            .sessions-page-container {
+              padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important;
+            }
+            .session-card {
+              flex-direction: column !important;
+              align-items: stretch !important;
+              padding: 16px !important;
+              gap: 14px !important;
+            }
+            .session-btn-terminate {
+              width: 100% !important;
+              justify-content: center !important;
+              padding: 10px !important;
+            }
+          }
+        `}} />
+        <div className="sessions-page-container" style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
 
-      <TerminateSessionModal
-        isOpen={showConfirmModal}
-        onCancel={() => setShowConfirmModal(false)}
-        onConfirm={confirmTerminate}
-      />
+        <TerminateSessionModal
+          isOpen={showConfirmModal}
+          onCancel={() => setShowConfirmModal(false)}
+          onConfirm={confirmTerminate}
+        />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1 style={{ margin: 0, fontSize: '24px', color: '#0f172a' }}>Active Sessions</h1>
-                <Link href="/admin/dashboard" className="back-btn">
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
-                </Link>
-            </div>
-            
-            <p style={{ color: '#64748b', marginBottom: '30px' }}>
-                Manage your active sessions across different devices and browsers. You can terminate any unrecognized sessions here.
-            </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                  <h1 style={{ margin: 0, fontSize: '24px', color: '#0f172a' }}>Active Sessions</h1>
+                  <Link href="/admin/dashboard" className="back-btn">
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>arrow_back</span> Back to Dashboard
+                  </Link>
+              </div>
+              
+              <p style={{ color: '#64748b', marginBottom: '25px', fontSize: '14px' }}>
+                  Manage your active sessions across different devices and browsers. You can terminate any unrecognized sessions here.
+              </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {sessions.map(session => (
-                    <div key={session.id} style={{
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                    }}>
-                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                            <div style={{ 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {sessions.map(session => (
+                      <div key={session.id} className="session-card" style={{
+                          background: '#fff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          padding: '20px 24px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                          flexWrap: 'wrap',
+                          gap: '14px'
+                      }}>
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <div style={{ 
                                 width: '50px', height: '50px', 
                                 background: '#f8fafc', borderRadius: '50%', 
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -114,6 +135,7 @@ export default function SessionsPage() {
                         </div>
                         
                         <button 
+                            className="session-btn-terminate"
                             onClick={() => handleTerminate(session.id)}
                             style={{
                                 background: 'transparent',
@@ -123,7 +145,10 @@ export default function SessionsPage() {
                                 borderRadius: '6px',
                                 cursor: 'pointer',
                                 fontWeight: 500,
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
                             onMouseOver={e => {
                                 e.currentTarget.style.background = '#ef4444';
@@ -140,8 +165,10 @@ export default function SessionsPage() {
                 ))}
             </div>
         </div>
+      </>
     );
 }
+
 
 
 

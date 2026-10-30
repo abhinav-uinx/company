@@ -52,15 +52,37 @@ export default function UserSessionsPage() {
   if (loading) return <LoadingIcon />;
 
   return (
-    <div style={{ padding: '30px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
-      
-      {/* Confirm Termination Modal */}
-      <UserTerminateSessionModal
-        isOpen={showConfirmModal}
-        isCurrentSession={terminateId === currentSessionId}
-        onCancel={() => setShowConfirmModal(false)}
-        onConfirm={confirmTerminate}
-      />
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 640px) {
+          .user-sessions-container {
+            padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important;
+          }
+          .user-session-card {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 16px !important;
+            gap: 14px !important;
+          }
+          .user-session-card > div:last-child {
+            width: 100% !important;
+          }
+          .user-session-card button {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 10px !important;
+          }
+        }
+      `}} />
+      <div className="user-sessions-container" style={{ padding: '30px 20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+        
+        {/* Confirm Termination Modal */}
+        <UserTerminateSessionModal
+          isOpen={showConfirmModal}
+          isCurrentSession={terminateId === currentSessionId}
+          onCancel={() => setShowConfirmModal(false)}
+          onConfirm={confirmTerminate}
+        />
 
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
@@ -100,6 +122,7 @@ export default function UserSessionsPage() {
           return (
             <div
               key={session.id}
+              className="user-session-card"
               style={{
                 background: '#fff',
                 border: isCurrent ? '1.5px solid #818CF8' : '1px solid #e2e8f0',
@@ -196,5 +219,6 @@ export default function UserSessionsPage() {
         })}
       </div>
     </div>
+  </>
   );
 }

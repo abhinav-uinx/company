@@ -237,7 +237,8 @@ export default function AttendancePage(props: any) {
         </button>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <div className="tableWrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', background: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
         <thead>
           <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
             <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#0B1220', fontSize: '0.9rem' }}>Date</th>
@@ -315,6 +316,7 @@ export default function AttendancePage(props: any) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

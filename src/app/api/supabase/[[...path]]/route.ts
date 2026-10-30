@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/app/actions/auth';
+import { hashPassword, isBcryptHash } from '@/lib/passwords';
+import { sanitizeObject } from '@/lib/security';
+import { logSecurityEvent } from '@/lib/securityAudit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -71,14 +74,26 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     });
   }
 
-  // Enforce role-based access for administrative tables
+  // Enforce role-based access for administrative tables (NIST SP 800-53 AC-3 / AC-4)
   if (session.role !== 'admin') {
-    const adminOnlyTables = ['admins', 'active_sessions', 'payment_history', 'employee_salaries'];
+    const adminOnlyTables = ['admins', 'active_sessions', 'payment_history', 'employee_salaries', 'security_audit_logs'];
     if (adminOnlyTables.includes(targetTable)) {
+      await logSecurityEvent({
+        eventType: 'PRIVILEGE_VIOLATION',
+        severity: 'WARN',
+        actor: (session.username as string) || 'unknown',
+        details: { table: targetTable, method: req.method }
+      });
       return NextResponse.json({ error: 'Forbidden. Admin privileges required.' }, { status: 403 });
     }
     // Non-admins cannot modify (POST/PATCH/PUT/DELETE) employees
     if (targetTable === 'employees' && req.method !== 'GET') {
+      await logSecurityEvent({
+        eventType: 'PRIVILEGE_VIOLATION',
+        severity: 'WARN',
+        actor: (session.username as string) || 'unknown',
+        details: { table: 'employees', action: 'modify_attempt', method: req.method }
+      });
       return NextResponse.json({ error: 'Forbidden. Admin privileges required to modify employee records.' }, { status: 403 });
     }
   }
@@ -114,9 +129,46 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
   };
 
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-    fetchOptions.body = req.body;
-    // @ts-ignore
-    fetchOptions.duplex = 'half';
+    const isJson = (headers.get('content-type') || '').includes('json');
+    if (isJson) {
+      try {
+        const rawText = await req.text();
+        if (rawText) {
+          let parsed = sanitizeObject(JSON.parse(rawText));
+          if ((targetTable === 'employees' || targetTable === 'admins') && ['POST', 'PATCH', 'PUT'].includes(req.method)) {
+            const processItem = async (item: any) => {
+              if (item && typeof item === 'object' && typeof item.password === 'string' && item.password.trim()) {
+                if (!isBcryptHash(item.password)) {
+                  item.password = await hashPassword(item.password.trim());
+                }
+              }
+            };
+
+            if (Array.isArray(parsed)) {
+              for (const item of parsed) {
+                await processItem(item);
+              }
+            } else {
+              await processItem(parsed);
+            }
+          }
+
+          const newBody = JSON.stringify(parsed);
+          fetchOptions.body = newBody;
+          headers.set('content-type', 'application/json');
+          headers.set('content-length', Buffer.byteLength(newBody).toString());
+        }
+      } catch (err) {
+        console.error('Error processing request body in proxy route:', err);
+        fetchOptions.body = req.body;
+        // @ts-ignore
+        fetchOptions.duplex = 'half';
+      }
+    } else {
+      fetchOptions.body = req.body;
+      // @ts-ignore
+      fetchOptions.duplex = 'half';
+    }
   }
 
   // 4. Proxy the request to Supabase

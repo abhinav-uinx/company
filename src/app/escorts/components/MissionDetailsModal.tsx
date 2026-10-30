@@ -34,51 +34,86 @@ export default function MissionDetailsModal({
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15, 23, 42, 0.6)',
-        backdropFilter: 'blur(4px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
-      }}
-      onClick={onClose}
-    >
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 640px) {
+          .mission-modal-overlay {
+            padding: 8px !important;
+          }
+          .mission-modal-container {
+            width: 100% !important;
+            max-height: 95vh !important;
+            border-radius: 14px !important;
+          }
+          .mission-modal-header {
+            padding: 14px 16px !important;
+          }
+          .mission-modal-body {
+            padding: 14px 12px !important;
+            gap: 14px !important;
+          }
+          .mission-modal-footer {
+            padding: 12px 14px !important;
+            gap: 8px !important;
+          }
+          .mission-modal-footer > * {
+            flex: 1 !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          .mission-info-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+        }
+      `}} />
       <div
-        className="hide-scrollbar"
-        onClick={(e) => e.stopPropagation()}
+        className="mission-modal-overlay"
         style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          width: '95%',
-          maxWidth: '850px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9999,
           display: 'flex',
-          flexDirection: 'column'
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
         }}
+        onClick={onClose}
       >
-        {/* Header */}
         <div
+          className="mission-modal-container hide-scrollbar"
+          onClick={(e) => e.stopPropagation()}
           style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid #f1f5f9',
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '95%',
+            maxWidth: '850px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: '#f8fafc',
-            borderTopLeftRadius: '16px',
-            borderTopRightRadius: '16px',
-            position: 'sticky',
-            top: 0,
-            zIndex: 10
+            flexDirection: 'column'
           }}
         >
+          {/* Header */}
+          <div
+            className="mission-modal-header"
+            style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc',
+              borderTopLeftRadius: '16px',
+              borderTopRightRadius: '16px',
+              position: 'sticky',
+              top: 0,
+              zIndex: 10
+            }}
+          >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
@@ -124,7 +159,7 @@ export default function MissionDetailsModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="mission-modal-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Section 1: People */}
           <div>
             <h3
@@ -140,7 +175,7 @@ export default function MissionDetailsModal({
             >
               Assignment Info
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            <div className="mission-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Customer Name</div>
                 <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>
@@ -256,9 +291,17 @@ export default function MissionDetailsModal({
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Route</div>
-                <div style={{ color: '#0f172a', fontWeight: 500 }}>
-                  {viewMission.from_country} {viewMission.layover_country ? '→ ' + viewMission.layover_country + ' ' : ''}→ {viewMission.to_country}
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Route</div>
+                <div style={{ color: '#0f172a', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>{viewMission.from_country || '-'}</span>
+                  {viewMission.layover_country && (
+                    <>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#94a3b8' }}>arrow_forward</span>
+                      <span style={{ color: '#475569' }}>{viewMission.layover_country}</span>
+                    </>
+                  )}
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#94a3b8' }}>arrow_forward</span>
+                  <span>{viewMission.to_country || '-'}</span>
                 </div>
               </div>
               <div>
@@ -322,6 +365,7 @@ export default function MissionDetailsModal({
 
         {/* Footer */}
         <div
+          className="mission-modal-footer"
           style={{
             padding: '16px 24px',
             background: '#f8fafc',
@@ -345,7 +389,10 @@ export default function MissionDetailsModal({
               color: '#0f172a',
               borderRadius: '8px',
               textDecoration: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             Edit Mission
@@ -368,5 +415,6 @@ export default function MissionDetailsModal({
         </div>
       </div>
     </div>
+  </>
   );
 }

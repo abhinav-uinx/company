@@ -68,10 +68,6 @@ export default function FormsPage() {
         /* Airline Grid layout: exactly 4 in a row */
         .airline-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
         
-        @media (max-width: 1100px) { .airline-grid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 800px) { .airline-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 500px) { .airline-grid { grid-template-columns: 1fr; } }
-        
         .airline-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 15px; display: flex; align-items: center; justify-content: flex-start; gap: 15px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.015); text-decoration: none; cursor: pointer; }
         .airline-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); }
         .logo-container { width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px; padding: 4px; border: 1px solid #f1f5f9; }
@@ -79,6 +75,14 @@ export default function FormsPage() {
         .airline-name { font-size: 0.95rem; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px; }
         .local-badge { font-size: 0.65rem; background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 10px; font-weight: 700; margin-left: 6px; flex-shrink: 0; vertical-align: middle; }
 
+        @media (max-width: 768px) {
+          .forms-container { padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important; }
+          .forms-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+          .forms-header h1 { font-size: 1.5rem !important; }
+          .tabs-nav { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; white-space: nowrap !important; }
+          .airline-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+          .airline-card { padding: 12px 14px !important; }
+        }
       ` }} />
 
       <Header />

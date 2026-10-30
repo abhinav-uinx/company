@@ -41,6 +41,26 @@ export default function DirectoryPage() {
         .tab-btn.active { color: #4F5DFF; }
         .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: #4F5DFF; border-radius: 3px 3px 0 0; }
         .tab-pane { margin-top: 15px; }
+
+        @media (max-width: 768px) {
+          .vault-container { margin: 15px auto !important; padding: 0 12px !important; }
+          .vault-header h1 { font-size: 1.4rem !important; }
+          .tabs-nav {
+            display: flex !important;
+            gap: 10px !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding-bottom: 6px !important;
+            margin-bottom: 16px !important;
+          }
+          .tab-btn {
+            white-space: nowrap !important;
+            font-size: 0.9rem !important;
+            padding: 8px 12px !important;
+            flex-shrink: 0 !important;
+          }
+        }
       `}} />
 
       <Header />

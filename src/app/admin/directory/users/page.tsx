@@ -323,54 +323,56 @@ export default function UsersListPage(props: any) {
             </div>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th style={{ minWidth: '180px' }}>Name &amp; Title</th>
-                <th style={{ minWidth: '150px' }}>Iqama / Email</th>
-                <th style={{ minWidth: '140px' }}>Department</th>
-                <th style={{ minWidth: '140px' }}>System Role</th>
-                <th style={{ minWidth: '160px' }}>Permission Level</th>
-                <th style={{ minWidth: '220px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="tableWrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#fff' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ padding: "40px", textAlign: "center", position: "relative", height: "300px" }}>
-                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-                      <div className="loader" style={{ width: "120px", transform: "scale(0.8)" }}>
-                        <div className="logo-layer logo-dim"></div>
-                        <div className="logo-layer logo-lit"></div>
-                        <div className="charge-mask"><div className="band"></div></div>
+                  <th style={{ minWidth: '180px' }}>Name &amp; Title</th>
+                  <th style={{ minWidth: '150px' }}>Iqama / Email</th>
+                  <th style={{ minWidth: '140px' }}>Department</th>
+                  <th style={{ minWidth: '140px' }}>System Role</th>
+                  <th style={{ minWidth: '160px' }}>Permission Level</th>
+                  <th style={{ minWidth: '220px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "40px", textAlign: "center", position: "relative", height: "300px" }}>
+                      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                        <div className="loader" style={{ width: "120px", transform: "scale(0.8)" }}>
+                          <div className="logo-layer logo-dim"></div>
+                          <div className="logo-layer logo-lit"></div>
+                          <div className="charge-mask"><div className="band"></div></div>
+                        </div>
+                        <div className="loading-label" style={{ color: "#334155", marginTop: "10px" }}>Loading Users...</div>
                       </div>
-                      <div className="loading-label" style={{ color: "#334155", marginTop: "10px" }}>Loading Users...</div>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map(user => (
-                  <UserTableRow
-                    key={user.iqama_number || user.id}
-                    user={user}
-                    rolesList={rolesList}
-                    updateMsg={updateMsg}
-                    formatDepartment={formatDepartment}
-                    onUpdateStatus={updateStatus}
-                    onUpdateRole={updateRole}
-                    onAssignAsNurse={assignAsNurse}
-                    onDeleteUser={deleteUser}
-                  />
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
-                    No users found matching current filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ) : filteredUsers.length > 0 ? (
+                  filteredUsers.map(user => (
+                    <UserTableRow
+                      key={user.iqama_number || user.id}
+                      user={user}
+                      rolesList={rolesList}
+                      updateMsg={updateMsg}
+                      formatDepartment={formatDepartment}
+                      onUpdateStatus={updateStatus}
+                      onUpdateRole={updateRole}
+                      onAssignAsNurse={assignAsNurse}
+                      onDeleteUser={deleteUser}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                      No users found matching current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </>

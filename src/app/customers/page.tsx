@@ -229,7 +229,7 @@ export default function CustomersList() {
       
       <div className={styles.header}>
         <h1 className={styles.title}>Customer Management</h1>
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
           {deleteMode && selectedIds.length > 0 && (
             <button 
               onClick={handleDeleteSelected}
@@ -259,7 +259,7 @@ export default function CustomersList() {
           placeholder="Search by name, passport, or country..." 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px', padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+          style={{ width: '100%', maxWidth: '400px', boxSizing: 'border-box', padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
         />
       </div>
 
