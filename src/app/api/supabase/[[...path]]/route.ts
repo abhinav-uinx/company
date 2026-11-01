@@ -121,12 +121,25 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
     }
   }
 
-  // 3. Forward headers, injecting Service Role Key safely from server
+  // 3. Clean, safe headers for Supabase (strips hop-by-hop headers, cookies, and invalid fetch headers)
   const activeKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || SUPABASE_SERVICE_KEY || DEFAULT_SERVICE_KEY;
-  const headers = new Headers(req.headers);
+  const headers = new Headers();
   headers.set('apikey', activeKey);
   headers.set('Authorization', `Bearer ${activeKey}`);
-  headers.delete('host');
+
+  req.headers.forEach((val, key) => {
+    const lower = key.toLowerCase();
+    if (
+      lower === 'accept' ||
+      lower === 'content-type' ||
+      lower === 'prefer' ||
+      lower === 'range' ||
+      lower === 'range-unit' ||
+      (lower.startsWith('x-') && !lower.startsWith('x-forwarded-') && lower !== 'x-real-ip')
+    ) {
+      headers.set(key, val);
+    }
+  });
 
   const fetchOptions: RequestInit = {
     method: req.method,
@@ -236,6 +249,7 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
       }
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('SUPABASE PROXY ERROR:', error);
+    return NextResponse.json({ error: error?.message || 'Proxy error', details: String(error) }, { status: 500 });
   }
 }
