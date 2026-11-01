@@ -103,9 +103,14 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
 
   // 2. Reconstruct the Supabase URL
   const path = pathArray ? pathArray.join('/') : '';
-  const searchParams = req.nextUrl.search;
+  let search = req.nextUrl.search || '';
+  // PostgREST requires literal commas for column separation, not encoded %2C or %252C
+  search = search.replace(/%252C/gi, ',').replace(/%2C/gi, ',');
+  // Strip any URL-encoded or literal spaces after commas (e.g. ?select=id, name -> ?select=id,name)
+  search = search.replace(/,\s+/g, ',').replace(/,%20/g, ',').replace(/,\+/g, ',');
+  
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const targetUrl = `${baseUrl}/${path}${searchParams}`;
+  const targetUrl = `${baseUrl}/${path}${search}`;
 
   // Check GET cache for instant response (<1ms)
   if (req.method === 'GET') {

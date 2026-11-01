@@ -116,11 +116,11 @@ export default function Vault() {
     try {
       const [cRes, sRes, invRes, payRes, mRes, empRes] = await Promise.all([
         supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
-        supabaseAuth.from('services').select('id, service_name, name'),
-        supabaseAuth.from('invoices').select('id, customer_id, total_amount, advance_paid, balance_amount, status, created_at').order('created_at', { ascending: false }),
-        supabaseAuth.from('payment_history').select('id, invoice_id, amount_paid, payment_date').order('payment_date', { ascending: false }),
-        supabaseAuth.from('escort_missions').select('id, customer_id, escort_employee_iqama, employee_name'),
-        supabaseAuth.from('employees').select('id, iqama_number, name, email, phone_number, photo_url, job_title, department, status, last_login')
+        supabaseAuth.from('services').select('id,service_name,name'),
+        supabaseAuth.from('invoices').select('id,customer_id,total_amount,advance_paid,balance_amount,status,created_at').order('created_at', { ascending: false }),
+        supabaseAuth.from('payment_history').select('id,invoice_id,amount_paid,payment_date').order('payment_date', { ascending: false }),
+        supabaseAuth.from('escort_missions').select('id,customer_id,escort_employee_iqama,employee_name'),
+        supabaseAuth.from('employees').select('id,iqama_number,name,email,phone_number,photo_url,job_title,department,status,last_login')
       ]);
 
       if (cRes.error) throw cRes.error;
