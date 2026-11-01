@@ -100,10 +100,10 @@ export default function InvoicesList() {
                   <tr key={inv.id}>
                     <td>{inv.id.substring(0, 8)}...</td>
                     <td style={{ fontWeight: 500 }}>{inv.customers?.name || 'Unknown Customer'}</td>
-                    <td>${inv.total_amount}</td>
-                    <td>${inv.advance_payment}</td>
+                    <td>SAR {inv.total_amount}</td>
+                    <td>SAR {inv.advance_payment}</td>
                     <td style={{ color: inv.balance_amount > 0 ? '#ef4444' : '#166534', fontWeight: 600 }}>
-                      ${inv.balance_amount}
+                      SAR {inv.balance_amount}
                     </td>
                     <td>
                       <span className={`${styles.statusBadge} ${getStatusClass(inv.status)}`}>

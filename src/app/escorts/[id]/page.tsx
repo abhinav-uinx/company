@@ -214,9 +214,9 @@ export default function EditEscortMission() {
           <div className={styles.formSection}>Mission Details</div>
           
           <div className={styles.formGroup}>
-            <label>Select Customer *</label>
+            <label>Select Patient *</label>
             <select name="customer_id" required value={formData.customer_id} onChange={handleChange}>
-              <option value="">-- Choose Customer --</option>
+              <option value="">-- Choose Patient --</option>
               {customers.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -261,7 +261,7 @@ export default function EditEscortMission() {
             <input type="date" name="escort_required_date" value={formData.escort_required_date} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Approximate Total Cost ($)</label>
+            <label>Approximate Total Cost (SAR)</label>
             <input type="number" step="0.01" name="approx_cost" value={formData.approx_cost} onChange={handleChange} />
           </div>
 
@@ -284,7 +284,7 @@ export default function EditEscortMission() {
             <input type="text" name="pnr" value={formData.pnr} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Ticket Cost ($)</label>
+            <label>Ticket Cost (SAR)</label>
             <input type="number" step="0.01" name="ticket_cost" value={formData.ticket_cost} onChange={handleChange} />
           </div>
 
@@ -330,7 +330,7 @@ export default function EditEscortMission() {
             const hasPassport = passportArr && Array.isArray(passportArr) && passportArr.length > 0;
             return (
               <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
-                <label>Passport Upload {hasPassport ? '(Add additional page)' : '(Missing for this customer)'}</label>
+                <label>Passport Upload {hasPassport ? '(Add additional page)' : '(Missing for this patient)'}</label>
                 <input type="file" accept=".pdf,image/*" onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
                     setPassportFile(e.target.files[0]);

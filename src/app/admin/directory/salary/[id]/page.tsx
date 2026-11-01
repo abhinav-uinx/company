@@ -190,12 +190,12 @@ export default function EditSalaryPage() {
               </h3>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Basic Salary (USD)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Basic Salary (SAR)</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontWeight: 600 }}>$</span>
+                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontWeight: 600, fontSize: '0.85rem' }}>SAR</span>
                   <input 
                     type="number" step="0.01" value={basicSalary} onChange={e => setBasicSalary(parseFloat(e.target.value) || 0)} required 
-                    style={{ width: '100%', padding: '14px 15px 14px 35px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '14px 15px 14px 50px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.2s', fontWeight: 500 }}
                     onFocus={e => e.target.style.borderColor = '#10b981'} onBlur={e => e.target.style.borderColor = '#cbd5e1'}
                   />
                 </div>
@@ -220,24 +220,24 @@ export default function EditSalaryPage() {
               </h3>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Advance Payment Recovery (USD)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Advance Payment Recovery (SAR)</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 600 }}>-$</span>
+                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 600, fontSize: '0.85rem' }}>-SAR</span>
                   <input 
                     type="number" step="0.01" value={advancePayment} onChange={e => setAdvancePayment(parseFloat(e.target.value) || 0)} 
-                    style={{ width: '100%', padding: '14px 15px 14px 40px', borderRadius: '10px', border: '1px solid #fca5a5', background: '#fef2f2', fontSize: '1rem', outline: 'none', color: '#b91c1c', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '14px 15px 14px 55px', borderRadius: '10px', border: '1px solid #fca5a5', background: '#fef2f2', fontSize: '1rem', outline: 'none', color: '#b91c1c', fontWeight: 500 }}
                     onFocus={e => e.target.style.borderColor = '#ef4444'} onBlur={e => e.target.style.borderColor = '#fca5a5'}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Other Deductions / Fines (USD)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600, color: '#475569' }}>Other Deductions / Fines (SAR)</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 600 }}>-$</span>
+                  <span style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', fontWeight: 600, fontSize: '0.85rem' }}>-SAR</span>
                   <input 
                     type="number" step="0.01" value={deductions} onChange={e => setDeductions(parseFloat(e.target.value) || 0)} 
-                    style={{ width: '100%', padding: '14px 15px 14px 40px', borderRadius: '10px', border: '1px solid #fca5a5', background: '#fef2f2', fontSize: '1rem', outline: 'none', color: '#b91c1c', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '14px 15px 14px 55px', borderRadius: '10px', border: '1px solid #fca5a5', background: '#fef2f2', fontSize: '1rem', outline: 'none', color: '#b91c1c', fontWeight: 500 }}
                     onFocus={e => e.target.style.borderColor = '#ef4444'} onBlur={e => e.target.style.borderColor = '#fca5a5'}
                   />
                 </div>
@@ -266,7 +266,7 @@ export default function EditSalaryPage() {
               </div>
             </div>
             <div style={{ fontSize: '2.8rem', fontWeight: 800, color: '#15803d', letterSpacing: '-1.5px' }}>
-              ${((Number(basicSalary) || 0) - (Number(advancePayment) || 0) - (Number(deductions) || 0)).toFixed(2)}
+              SAR {((Number(basicSalary) || 0) - (Number(advancePayment) || 0) - (Number(deductions) || 0)).toFixed(2)}
             </div>
           </div>
 

@@ -4,16 +4,28 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseAuth } from '@/lib/supabase';
 import styles from '@/app/customers/customers.module.css';
-import { GenerateSalarySlipModal } from './components';
+import { GenerateSalarySlipModal, SalaryFilterDropdown, MonthOption } from './components';
 
 export default function SalaryPage(props: any) {
   const embedded = props?.embedded ?? false;
   const [salaries, setSalaries] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [actionError, setActionError] = useState('');
+
+  const formatDepartment = (deptStr: string) => {
+    if (!deptStr || deptStr === 'N/A') return 'N/A';
+    let formatted = deptStr;
+    formatted = formatted.replace(/d69ccefc-045a-4bb1-8c27-99120e16610b/gi, 'Nurse');
+    formatted = formatted.replace(/Human Resources/gi, 'HR');
+    return formatted.split(',').map(s => s.trim()).filter(Boolean).join(' / ');
+  };
 
   useEffect(() => {
     fetchData();
@@ -24,13 +36,20 @@ export default function SalaryPage(props: any) {
     setActionError('');
 
     try {
-      const [salRes, empRes] = await Promise.all([
+      const [salRes, empRes, deptRes] = await Promise.all([
         supabaseAuth.from('employee_salaries').select('*').order('month', { ascending: false }),
-        supabaseAuth.from('employees').select('id, name, iqama_number, email, department, job_title').order('name', { ascending: true })
+        supabaseAuth.from('employees').select('id, name, iqama_number, email, department, department_id, job_title').order('name', { ascending: true }),
+        supabaseAuth.from('departments').select('*').order('name')
       ]);
 
       if (salRes.error) console.error("Salaries fetch error:", salRes.error);
       if (empRes.error) console.error("Employees fetch error:", empRes.error);
+      if (deptRes.error) console.error("Departments fetch error:", deptRes.error);
+
+      const depts = deptRes.data || [];
+      setDepartments(depts);
+      const deptMap: Record<string, string> = {};
+      depts.forEach((d: any) => { deptMap[d.id] = d.name; });
 
       if (empRes.data) {
         setEmployees(empRes.data);
@@ -49,14 +68,19 @@ export default function SalaryPage(props: any) {
 
         const mapped = salRes.data.map((d: any) => {
           const emp = (d.employee_id && empMapById.get(d.employee_id)) || empMapByIqama.get(d.employee_iqama);
+          const rawDept = emp?.department_id || emp?.department || '';
+          const resolvedDept = deptMap[rawDept] || rawDept || 'N/A';
+          const formattedDept = formatDepartment(resolvedDept);
+
           return {
             ...d,
             employees: {
               id: emp?.id || d.employee_id || null,
               name: emp?.name || 'Unknown',
               iqama_number: emp?.iqama_number || d.employee_iqama,
-              department: emp?.department || '',
-              job_title: emp?.job_title || ''
+              department: formattedDept,
+              job_title: emp?.job_title || '',
+              email: emp?.email || ''
             }
           };
         });
@@ -123,18 +147,143 @@ export default function SalaryPage(props: any) {
     }
   };
 
+  const ALL_MONTHS: MonthOption[] = [
+    { value: '01', label: 'January', short: 'Jan' },
+    { value: '02', label: 'February', short: 'Feb' },
+    { value: '03', label: 'March', short: 'Mar' },
+    { value: '04', label: 'April', short: 'Apr' },
+    { value: '05', label: 'May', short: 'May' },
+    { value: '06', label: 'June', short: 'Jun' },
+    { value: '07', label: 'July', short: 'Jul' },
+    { value: '08', label: 'August', short: 'Aug' },
+    { value: '09', label: 'September', short: 'Sep' },
+    { value: '10', label: 'October', short: 'Oct' },
+    { value: '11', label: 'November', short: 'Nov' },
+    { value: '12', label: 'December', short: 'Dec' },
+  ];
+
+  const parseYearAndMonth = (monthStr?: string) => {
+    if (!monthStr) return { year: '', monthNum: '' };
+    const parts = monthStr.split('-');
+    return {
+      year: parts[0] || '',
+      monthNum: parts[1] || ''
+    };
+  };
+
+  const availableDepartments = Array.from(new Set([
+    ...departments.map(d => formatDepartment(d.name)),
+    ...salaries.map(s => s.employees?.department || 'N/A')
+  ])).filter(d => d && d !== 'N/A').sort();
+
+  const availableYears = Array.from(new Set(
+    salaries
+      .map(s => parseYearAndMonth(s.month).year)
+      .filter(Boolean)
+  )).sort((a, b) => b.localeCompare(a));
+  const currentYearStr = new Date().getFullYear().toString();
+  if (!availableYears.includes(currentYearStr)) {
+    availableYears.unshift(currentYearStr);
+  }
+
+  const monthsWithCount: MonthOption[] = ALL_MONTHS.map(m => {
+    const count = salaries.filter(s => parseYearAndMonth(s.month).monthNum === m.value).length;
+    return { ...m, count };
+  });
+
+  const handleToggleDepartment = (dept: string) => {
+    setSelectedDepartments(prev =>
+      prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]
+    );
+  };
+
+  const handleSelectAllDepartments = () => {
+    setSelectedDepartments([]);
+  };
+
+  const handleToggleMonth = (mVal: string) => {
+    setSelectedMonths(prev =>
+      prev.includes(mVal) ? prev.filter(m => m !== mVal) : [...prev, mVal]
+    );
+  };
+
+  const handleSelectAllMonths = () => {
+    setSelectedMonths([]);
+  };
+
+  const handleToggleYear = (yVal: string) => {
+    setSelectedYears(prev =>
+      prev.includes(yVal) ? prev.filter(y => y !== yVal) : [...prev, yVal]
+    );
+  };
+
+  const handleSelectAllYears = () => {
+    setSelectedYears([]);
+  };
+
+  const handleResetAllFilters = () => {
+    setSelectedDepartments([]);
+    setSelectedMonths([]);
+    setSelectedYears([]);
+    setSearchQuery('');
+  };
+
   const filteredSalaries = salaries.filter((s) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const name = s.employees?.name?.toLowerCase() || '';
-    const iqama = (s.employee_iqama || '').toLowerCase();
-    const empId = (s.employee_id || '').toLowerCase();
-    const month = (s.month || '').toLowerCase();
-    return name.includes(q) || iqama.includes(q) || empId.includes(q) || month.includes(q);
+    // 1. Department filter
+    if (selectedDepartments.length > 0) {
+      const empDept = s.employees?.department || 'N/A';
+      if (!selectedDepartments.includes(empDept)) {
+        return false;
+      }
+    }
+
+    // 2. Month and Year filter
+    const { year: recYear, monthNum: recMonthNum } = parseYearAndMonth(s.month);
+
+    if (selectedYears.length > 0) {
+      if (!selectedYears.includes(recYear)) {
+        return false;
+      }
+    }
+
+    if (selectedMonths.length > 0) {
+      if (!selectedMonths.includes(recMonthNum)) {
+        return false;
+      }
+    }
+
+    // 3. Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const name = (s.employees?.name || '').toLowerCase();
+      const iqama = (s.employee_iqama || '').toLowerCase();
+      const empId = (s.employee_id || '').toLowerCase();
+      const month = (s.month || '').toLowerCase();
+      const status = (s.status || '').toLowerCase();
+      const dept = (s.employees?.department || '').toLowerCase();
+      const jobTitle = (s.employees?.job_title || '').toLowerCase();
+      const email = (s.employees?.email || '').toLowerCase();
+      const basic = String(s.basic_salary || '');
+      const net = String(s.net_salary || '');
+      return (
+        name.includes(q) ||
+        iqama.includes(q) ||
+        empId.includes(q) ||
+        month.includes(q) ||
+        status.includes(q) ||
+        dept.includes(q) ||
+        jobTitle.includes(q) ||
+        email.includes(q) ||
+        basic.includes(q) ||
+        net.includes(q)
+      );
+    }
+
+    return true;
   });
 
   return (
-    <div className={embedded ? "" : styles.container}>
+    <div className={embedded ? "" : styles.container} style={{ minHeight: '80vh' }}>
       <GenerateSalarySlipModal
         isOpen={showGenerateModal}
         employees={employees}
@@ -167,53 +316,91 @@ export default function SalaryPage(props: any) {
         </div>
       )}
 
+      {/* Subtitle Description */}
+      <div style={{ marginBottom: '16px' }}>
+        <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>
+          Monthly employee salary records, deductions, and payment status linked by employee ID.
+        </p>
+      </div>
+
+      {/* Full-width Action Toolbar: Search on left, Actions & Filters at utmost right */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '20px',
+          marginBottom: '16px',
           flexWrap: 'wrap',
-          gap: '12px'
+          gap: '12px',
+          width: '100%'
         }}
       >
-        <div>
-          <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>
-            Monthly employee salary records, deductions, and payment status linked by employee ID.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ position: 'relative' }}>
-            <span
-              className="material-symbols-outlined"
+        {/* Left Side: Search Bar */}
+        <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              position: 'absolute',
+              left: '10px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#94a3b8',
+              fontSize: '18px',
+              pointerEvents: 'none'
+            }}
+          >
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Search employee, ID, month, status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 32px 8px 34px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.88rem',
+              outline: 'none',
+              transition: 'all 0.2s',
+              boxSizing: 'border-box'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#4F5DFF';
+              e.target.style.boxShadow = '0 0 0 3px rgba(79, 93, 255, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#cbd5e1';
+              e.target.style.boxShadow = 'none';
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
               style={{
                 position: 'absolute',
-                left: '10px',
+                right: '8px',
                 top: '50%',
                 transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
                 color: '#94a3b8',
-                fontSize: '18px'
+                cursor: 'pointer',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center'
               }}
+              title="Clear search"
             >
-              search
-            </span>
-            <input
-              type="text"
-              placeholder="Filter by name, ID, month..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                padding: '8px 12px 8px 34px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                outline: 'none',
-                minWidth: '220px'
-              }}
-            />
-          </div>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            </button>
+          )}
+        </div>
 
+        {/* Right Side Actions: Generate Salary Slip, and at the UTMOST RIGHT: Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
           <button
             onClick={() => setShowGenerateModal(true)}
             style={{
@@ -236,8 +423,133 @@ export default function SalaryPage(props: any) {
             </span>{' '}
             Generate Salary Slip
           </button>
+
+          <SalaryFilterDropdown
+            departments={availableDepartments}
+            selectedDepartments={selectedDepartments}
+            onToggleDepartment={handleToggleDepartment}
+            onSelectAllDepartments={handleSelectAllDepartments}
+            months={monthsWithCount}
+            selectedMonths={selectedMonths}
+            onToggleMonth={handleToggleMonth}
+            onSelectAllMonths={handleSelectAllMonths}
+            years={availableYears}
+            selectedYears={selectedYears}
+            onToggleYear={handleToggleYear}
+            onSelectAllYears={handleSelectAllYears}
+            onResetAll={handleResetAllFilters}
+            filteredCount={filteredSalaries.length}
+            totalCount={salaries.length}
+          />
         </div>
       </div>
+
+      {/* Active Filter Chips */}
+      {(selectedDepartments.length > 0 || selectedMonths.length > 0 || selectedYears.length > 0) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Active Filters:</span>
+          {selectedDepartments.map((dept) => (
+            <span
+              key={`dept-chip-${dept}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                borderRadius: '16px',
+                padding: '2px 9px',
+                fontSize: '0.78rem',
+                fontWeight: 600
+              }}
+            >
+              Dept: {dept}
+              <button
+                type="button"
+                onClick={() => handleToggleDepartment(dept)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                title="Remove department filter"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+              </button>
+            </span>
+          ))}
+          {selectedMonths.map((mVal) => {
+            const mLabel = ALL_MONTHS.find(m => m.value === mVal)?.label || mVal;
+            return (
+              <span
+                key={`month-chip-${mVal}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '16px',
+                  padding: '2px 9px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600
+                }}
+              >
+                Month: {mLabel}
+                <button
+                  type="button"
+                  onClick={() => handleToggleMonth(mVal)}
+                  style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                  title="Remove month filter"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                </button>
+              </span>
+            );
+          })}
+          {selectedYears.map((yVal) => (
+            <span
+              key={`year-chip-${yVal}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                borderRadius: '16px',
+                padding: '2px 9px',
+                fontSize: '0.78rem',
+                fontWeight: 600
+              }}
+            >
+              Year: {yVal}
+              <button
+                type="button"
+                onClick={() => handleToggleYear(yVal)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                title="Remove year filter"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={handleResetAllFilters}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '2px 6px',
+              textDecoration: 'underline'
+            }}
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       <div className="tableWrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
       <table
@@ -309,17 +621,33 @@ export default function SalaryPage(props: any) {
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      Iqama: {s.employee_iqama || s.employees?.iqama_number || '—'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        Iqama: {s.employee_iqama || s.employees?.iqama_number || '—'}
+                      </span>
+                      {s.employees?.department && s.employees.department !== 'N/A' && (
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '1px 6px',
+                            background: '#f1f5f9',
+                            color: '#475569',
+                            borderRadius: '4px',
+                            fontWeight: 600
+                          }}
+                        >
+                          {s.employees.department}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
-                <td style={{ padding: '12px 16px' }}>${Number(s.basic_salary || 0).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px' }}>SAR {Number(s.basic_salary || 0).toLocaleString()}</td>
                 <td style={{ padding: '12px 16px', color: Number(s.deductions || 0) > 0 ? '#ef4444' : '#64748b' }}>
-                  {Number(s.deductions || 0) > 0 ? `-$${Number(s.deductions).toLocaleString()}` : '$0'}
+                  {Number(s.deductions || 0) > 0 ? `-SAR ${Number(s.deductions).toLocaleString()}` : 'SAR 0'}
                 </td>
                 <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>
-                  ${Number(s.net_salary || 0).toLocaleString()}
+                  SAR {Number(s.net_salary || 0).toLocaleString()}
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <span
@@ -415,7 +743,29 @@ export default function SalaryPage(props: any) {
           ) : (
             <tr>
               <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                {searchQuery ? 'No matching salary records found.' : 'No salary records found.'}
+                {searchQuery.trim() || selectedDepartments.length > 0 || selectedMonths.length > 0 || selectedYears.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <span>No salary records matching the selected filters or search query.</span>
+                    <button
+                      type="button"
+                      onClick={handleResetAllFilters}
+                      style={{
+                        background: '#eff6ff',
+                        color: '#2563eb',
+                        border: '1px solid #bfdbfe',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                ) : (
+                  'No salary records found.'
+                )}
               </td>
             </tr>
           )}

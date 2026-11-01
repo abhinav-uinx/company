@@ -190,15 +190,15 @@ export default function CreateInvoice() {
           <div className={styles.formSection}>Charges</div>
           
           <div className={styles.formGroup}>
-            <label>Medical Escort Charges ($) *</label>
+            <label>Medical Escort Charges (SAR) *</label>
             <input type="number" step="0.01" name="medical_escort_charges" required value={formData.medical_escort_charges} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Ticket Charges ($)</label>
+            <label>Ticket Charges (SAR)</label>
             <input type="number" step="0.01" name="ticket_charges" value={formData.ticket_charges} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Documentation Charges ($)</label>
+            <label>Documentation Charges (SAR)</label>
             <input type="number" step="0.01" name="documentation_charges" value={formData.documentation_charges} onChange={handleChange} />
           </div>
           <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
@@ -224,7 +224,7 @@ export default function CreateInvoice() {
                         }} /> {s}
                       </label>
                       {selectedOtherExpenses.includes(s) && (
-                        <input type="number" step="0.01" value={otherExpensesPrices[s] || ''} onChange={e => setOtherExpensesPrices({...otherExpensesPrices, [s]: parseFloat(e.target.value) || 0})} placeholder="Price ($)" style={{ width: '90px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                        <input type="number" step="0.01" value={otherExpensesPrices[s] || ''} onChange={e => setOtherExpensesPrices({...otherExpensesPrices, [s]: parseFloat(e.target.value) || 0})} placeholder="Price (SAR)" style={{ width: '90px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                       )}
                     </div>
                   ))}
@@ -242,20 +242,20 @@ export default function CreateInvoice() {
                         }} /> {s.name} (General)
                       </label>
                       {selectedOtherExpenses.includes(s.name) && (
-                        <input type="number" step="0.01" value={otherExpensesPrices[s.name] || ''} onChange={e => setOtherExpensesPrices({...otherExpensesPrices, [s.name]: parseFloat(e.target.value) || 0})} placeholder="Price ($)" style={{ width: '90px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                        <input type="number" step="0.01" value={otherExpensesPrices[s.name] || ''} onChange={e => setOtherExpensesPrices({...otherExpensesPrices, [s.name]: parseFloat(e.target.value) || 0})} placeholder="Price (SAR)" style={{ width: '90px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
                       )}
                     </div>
                   ))}
                 </div>
                 <div className={styles.formGroup} style={{ maxWidth: '300px' }}>
-                  <label>Calculated Other Expenses ($)</label>
+                  <label>Calculated Other Expenses (SAR)</label>
                   <input type="number" step="0.01" value={selectedOtherExpenses.reduce((sum, name) => sum + (otherExpensesPrices[name] || 0), 0)} readOnly style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }} />
                 </div>
               </div>
             )}
             {!showOtherExpenses && (
               <div className={styles.formGroup} style={{ maxWidth: '300px' }}>
-                <label>Other Expenses ($)</label>
+                <label>Other Expenses (SAR)</label>
                 <input type="number" step="0.01" name="other_expenses" value={formData.other_expenses} onChange={handleChange} />
               </div>
             )}
@@ -268,7 +268,7 @@ export default function CreateInvoice() {
             <input type="number" step="0.01" name="tax_vat_percent" value={formData.tax_vat_percent} onChange={handleChange} />
           </div>
           <div className={styles.formGroup}>
-            <label>Discount Amount ($)</label>
+            <label>Discount Amount (SAR)</label>
             <input type="number" step="0.01" name="discount" value={formData.discount} onChange={handleChange} />
           </div>
           <div className={styles.formGroup} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
@@ -277,7 +277,7 @@ export default function CreateInvoice() {
           </div>
           {!fullAmountReceived && (
             <div className={styles.formGroup}>
-              <label>Advance Payment Received ($)</label>
+              <label>Advance Payment Received (SAR)</label>
               <input type="number" step="0.01" name="advance_payment" value={formData.advance_payment} onChange={handleChange} />
             </div>
           )}
@@ -285,28 +285,28 @@ export default function CreateInvoice() {
           <div className={styles.summaryBox}>
             <div className={styles.summaryRow}>
               <span>Subtotal:</span>
-              <span>${totals.subtotal.toFixed(2)}</span>
+              <span>SAR {totals.subtotal.toFixed(2)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span>VAT ({formData.tax_vat_percent}%):</span>
-              <span>+ ${totals.vatAmount.toFixed(2)}</span>
+              <span>+ SAR {totals.vatAmount.toFixed(2)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span>Discount:</span>
-              <span>- ${formData.discount.toFixed(2)}</span>
+              <span>- SAR {formData.discount.toFixed(2)}</span>
             </div>
             <div className={`${styles.summaryRow} ${styles.total}`}>
               <span>Total Amount:</span>
-              <span>${totals.total_amount.toFixed(2)}</span>
+              <span>SAR {totals.total_amount.toFixed(2)}</span>
             </div>
             <div className={styles.summaryRow} style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #cbd5e1' }}>
               <span>Advance Paid:</span>
-              <span style={{ color: '#166534', fontWeight: 600 }}>${totals.actual_advance.toFixed(2)}</span>
+              <span style={{ color: '#166534', fontWeight: 600 }}>SAR {totals.actual_advance.toFixed(2)}</span>
             </div>
             <div className={`${styles.summaryRow} ${styles.total}`}>
               <span>Balance Due:</span>
               <span style={{ color: totals.balance_amount > 0 ? '#ef4444' : '#0f172a' }}>
-                ${totals.balance_amount.toFixed(2)}
+                SAR {totals.balance_amount.toFixed(2)}
               </span>
             </div>
           </div>

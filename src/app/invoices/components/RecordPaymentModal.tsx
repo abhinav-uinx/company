@@ -100,13 +100,13 @@ export default function RecordPaymentModal({
         <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', marginBottom: '18px', border: '1px solid #f1f5f9' }}>
           <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Current Balance</div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-            ${paymentModal.balance_amount}
+            SAR {paymentModal.balance_amount}
           </div>
         </div>
 
         <div style={{ marginBottom: '22px' }}>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-            Payment Amount ($)
+            Payment Amount (SAR)
           </label>
           <input
             type="number"

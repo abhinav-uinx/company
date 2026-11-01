@@ -1,24 +1,40 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { supabaseAuth } from '@/lib/supabase';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthGuard';
-import LoadingIcon from '@/components/LoadingIcon';
+import TableSkeleton from '@/components/common/TableSkeleton';
 import { CustomerDossierModal, NurseDetailsModal, FullscreenFileViewer } from './components';
+
+// Module-level in-memory cache for instant navigation without loading spinner
+let vaultMemoryCache: {
+  customers: any[];
+  services: any[];
+  invoices: any[];
+  payments: any[];
+  missions: any[];
+  employees: any[];
+  medifMap: Record<string, any[]>;
+  timestamp: number;
+} | null = null;
 
 export default function Vault() {
   const { role, isFolderAllowed } = useAuth();
-  const [loading, setLoading] = useState(true);
+
+  // Instant cache detection: if cache exists, loading starts as false
+  const hasCache = Boolean(vaultMemoryCache && vaultMemoryCache.customers.length > 0);
+
+  const [loading, setLoading] = useState(!hasCache);
   const [error, setError] = useState('');
 
-  // Core Data
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [missions, setMissions] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
+  // Core Data initialized synchronously from memory cache if available
+  const [customers, setCustomers] = useState<any[]>(vaultMemoryCache?.customers || []);
+  const [services, setServices] = useState<any[]>(vaultMemoryCache?.services || []);
+  const [invoices, setInvoices] = useState<any[]>(vaultMemoryCache?.invoices || []);
+  const [payments, setPayments] = useState<any[]>(vaultMemoryCache?.payments || []);
+  const [missions, setMissions] = useState<any[]>(vaultMemoryCache?.missions || []);
+  const [employees, setEmployees] = useState<any[]>(vaultMemoryCache?.employees || []);
 
   // Filtering & Search
   const [search, setSearch] = useState('');
@@ -34,89 +50,151 @@ export default function Vault() {
   // Nurse Details Modal
   const [selectedNurse, setSelectedNurse] = useState<any | null>(null);
 
-  // MEDIF Forms State
-  const [medifMap, setMedifMap] = useState<Record<string, any[]>>({});
+  // MEDIF Forms State (cached in-memory across navigations)
+  const [medifMap, setMedifMap] = useState<Record<string, any[]>>(vaultMemoryCache?.medifMap || {});
   const [uploadingMedif, setUploadingMedif] = useState(false);
 
-  // Fetch Vault Data
-  const fetchAllVaultData = async () => {
-    setLoading(true);
+  // On-demand MEDIF loader for a single customer (fast, never blocks the table)
+  const fetchCustomerMedif = async (customerId: string, hasMedical: boolean): Promise<any[]> => {
+    if (medifMap[customerId] && medifMap[customerId].length > 0) {
+      return medifMap[customerId];
+    }
+    try {
+      const primaryBucket = hasMedical ? 'medical_escort' : 'general_service';
+      const altBucket = hasMedical ? 'general_service' : 'medical_escort';
+
+      let { data: mList } = await supabaseAuth.storage.from(primaryBucket).list(`${customerId}/medif form`);
+      let usedBucket = primaryBucket;
+      let validFiles = (mList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+
+      if (validFiles.length === 0) {
+        const { data: gList } = await supabaseAuth.storage.from(altBucket).list(`${customerId}/medif form`);
+        const validG = (gList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
+        if (validG.length > 0) {
+          validFiles = validG;
+          usedBucket = altBucket;
+        }
+      }
+
+      if (validFiles.length > 0) {
+        const filesWithUrl = await Promise.all(
+          validFiles.map(async f => {
+            const path = `${customerId}/medif form/${f.name}`;
+            const { data: signed } = await supabaseAuth.storage.from(usedBucket).createSignedUrl(path, 3600);
+            return {
+              name: f.name,
+              path,
+              bucket: usedBucket,
+              size: f.metadata?.size || 0,
+              updated_at: f.updated_at || f.created_at,
+              url: signed?.signedUrl || '',
+              type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'
+            };
+          })
+        );
+        const resolved = filesWithUrl.filter(f => f.url);
+        setMedifMap(prev => {
+          const updated = { ...prev, [customerId]: resolved };
+          if (vaultMemoryCache) vaultMemoryCache.medifMap = updated;
+          return updated;
+        });
+        return resolved;
+      }
+    } catch (e) {
+      console.warn('On-demand MEDIF fetch error:', e);
+    }
+    return [];
+  };
+
+  // High-performance Vault Data Fetcher: only fetches DB tables in parallel (~150-250ms)
+  const fetchAllVaultData = async (isBackgroundRevalidate = false) => {
+    if (!isBackgroundRevalidate && !vaultMemoryCache) {
+      setLoading(true);
+    }
     setError('');
+
     try {
       const [cRes, sRes, invRes, payRes, mRes, empRes] = await Promise.all([
         supabaseAuth.from('customers').select('*').order('created_at', { ascending: false }),
-        supabaseAuth.from('services').select('*'),
-        supabaseAuth.from('invoices').select('*').order('created_at', { ascending: false }),
-        supabaseAuth.from('payment_history').select('*').order('payment_date', { ascending: false }),
-        supabaseAuth.from('escort_missions').select('*'),
+        supabaseAuth.from('services').select('id, service_name, name'),
+        supabaseAuth.from('invoices').select('id, customer_id, total_amount, advance_paid, balance_amount, status, created_at').order('created_at', { ascending: false }),
+        supabaseAuth.from('payment_history').select('id, invoice_id, amount_paid, payment_date').order('payment_date', { ascending: false }),
+        supabaseAuth.from('escort_missions').select('id, customer_id, escort_employee_iqama, employee_name'),
         supabaseAuth.from('employees').select('id, iqama_number, name, email, phone_number, photo_url, job_title, department, status, last_login')
       ]);
 
       if (cRes.error) throw cRes.error;
-      if (sRes.data) setServices(sRes.data);
-      if (invRes.data) setInvoices(invRes.data);
-      if (payRes.data) setPayments(payRes.data);
-      if (mRes.data) setMissions(mRes.data);
-      if (empRes.data) setEmployees(empRes.data);
-      if (cRes.data) setCustomers(cRes.data);
 
-      // Fetch MEDIF forms for all customers from storage
-      const custList = cRes.data || [];
-      const newMedifMap: Record<string, any[]> = {};
+      const cData = cRes.data || [];
+      const sData = sRes.data || [];
+      const invData = invRes.data || [];
+      const payData = payRes.data || [];
+      const mData = mRes.data || [];
+      const empData = empRes.data || [];
 
-      await Promise.all(
-        custList.map(async (cust: any) => {
-          try {
-            let { data: mList } = await supabaseAuth.storage.from('medical_escort').list(`${cust.id}/medif form`);
-            let usedBucket = 'medical_escort';
+      setCustomers(cData);
+      setServices(sData);
+      setInvoices(invData);
+      setPayments(payData);
+      setMissions(mData);
+      setEmployees(empData);
 
-            let validFiles = (mList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
-            if (validFiles.length === 0) {
-              const { data: gList } = await supabaseAuth.storage.from('general_service').list(`${cust.id}/medif form`);
-              const validG = (gList || []).filter(f => f.name && f.name !== '.emptyFolderPlaceholder');
-              if (validG.length > 0) {
-                validFiles = validG;
-                usedBucket = 'general_service';
-              }
-            }
+      // Immediately dismiss loading state - table is ready!
+      setLoading(false);
 
-            if (validFiles.length > 0) {
-              const filesWithUrl = await Promise.all(
-                validFiles.map(async f => {
-                  const path = `${cust.id}/medif form/${f.name}`;
-                  const { data: signed } = await supabaseAuth.storage.from(usedBucket).createSignedUrl(path, 3600);
-                  return {
-                    name: f.name,
-                    path,
-                    bucket: usedBucket,
-                    size: f.metadata?.size || 0,
-                    updated_at: f.updated_at || f.created_at,
-                    url: signed?.signedUrl || '',
-                    type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'
-                  };
-                })
-              );
-              newMedifMap[cust.id] = filesWithUrl.filter(f => f.url);
-            } else {
-              newMedifMap[cust.id] = [];
-            }
-          } catch {
-            newMedifMap[cust.id] = [];
-          }
-        })
-      );
+      // Save to memory cache for zero-loading navigation
+      vaultMemoryCache = {
+        customers: cData,
+        services: sData,
+        invoices: invData,
+        payments: payData,
+        missions: mData,
+        employees: empData,
+        medifMap: vaultMemoryCache?.medifMap || {},
+        timestamp: Date.now()
+      };
 
-      setMedifMap(newMedifMap);
+      // Persist in sessionStorage for instant browser session reloads
+      try {
+        sessionStorage.setItem('medescort_vault_cache', JSON.stringify({
+          customers: cData,
+          services: sData,
+          invoices: invData,
+          payments: payData,
+          missions: mData,
+          employees: empData,
+          timestamp: Date.now()
+        }));
+      } catch {}
     } catch (err: any) {
       console.error('Vault data fetch error:', err);
       setError(err.message || 'Failed to load vault records');
-    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAllVaultData();
+    // If not in memory, check sessionStorage for instant zero-wait load
+    if (!vaultMemoryCache && typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('medescort_vault_cache');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.customers) && parsed.customers.length > 0) {
+            setCustomers(parsed.customers);
+            if (parsed.services) setServices(parsed.services);
+            if (parsed.invoices) setInvoices(parsed.invoices);
+            if (parsed.payments) setPayments(parsed.payments);
+            if (parsed.missions) setMissions(parsed.missions);
+            if (parsed.employees) setEmployees(parsed.employees);
+            setLoading(false);
+          }
+        }
+      } catch {}
+    }
+
+    // Fetch fresh data (silently in background if cache is already present)
+    fetchAllVaultData(hasCache);
   }, []);
 
   // Modal accessibility: background scroll lock and Escape key dismiss
@@ -273,10 +351,21 @@ export default function Vault() {
 
   // Open Full Customer Dossier
   const handleOpenCustomer = async (cust: any) => {
-    const mFiles = medifMap[cust.id] || cust.medifFiles || [];
+    let mFiles = medifMap[cust.id] || cust.medifFiles || [];
     setSelectedCustomer({ ...cust, medifFiles: mFiles });
     setLoadingPassports(true);
     setCustomerPassports([]);
+
+    // Fetch MEDIF on-demand for this customer in parallel if not yet cached
+    if (!mFiles || mFiles.length === 0) {
+      fetchCustomerMedif(cust.id, cust.hasMedical).then((fetched) => {
+        if (fetched && fetched.length > 0) {
+          setSelectedCustomer((prev: any) =>
+            prev && prev.id === cust.id ? { ...prev, medifFiles: fetched } : prev
+          );
+        }
+      });
+    }
 
     try {
       const bucket = cust.hasMedical ? 'medical_escort' : 'general_service';
@@ -402,32 +491,49 @@ export default function Vault() {
     <>
       <style dangerouslySetInnerHTML={{__html: `
         .vault-page { max-width: 1300px; margin: 0 auto; padding: 32px 24px; font-family: 'Inter', -apple-system, sans-serif; color: #0f172a; }
+        /* Top Header */
         .vault-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
         .back-link { display: inline-flex; align-items: center; gap: 6px; color: #4F5DFF; background: #EEF1FF; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
         .back-link:hover { background: #e0e7ff; }
 
         /* Search & Filters */
-        .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-        .search-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; max-width: 620px; }
-        .search-box { position: relative; flex: 1; min-width: 180px; }
-        .search-box input { width: 100%; height: 42px; padding: 0 14px 0 38px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; background: #ffffff; }
-        .search-box input:focus { border-color: #4F5DFF; box-shadow: 0 0 0 3px rgba(79, 93, 255, 0.15); }
-        .search-box .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 20px; pointer-events: none; }
-        .vault-total-box { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); flex-shrink: 0; user-select: none; white-space: nowrap; transition: all 0.2s ease; box-sizing: border-box; }
-        .vault-total-box:hover { border-color: #cbd5e1; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06); }
-        .vault-total-label { font-size: 13px; font-weight: 700; color: #475569; letter-spacing: 0.01em; }
-        .vault-total-badge { background: #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 800; padding: 3px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-flex; align-items: baseline; }
-        .vault-total-sub { font-size: 11px; font-weight: 600; color: #64748b; margin-left: 3px; }
-        .select-filter { height: 42px; padding: 0 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-size: 13px; font-weight: 500; color: #334155; outline: none; cursor: pointer; box-sizing: border-box; }
+        .filter-bar { display: flex !important; gap: 12px !important; margin-bottom: 22px !important; flex-wrap: wrap !important; align-items: center !important; justify-content: space-between !important; }
+        .search-group { display: flex !important; align-items: center !important; gap: 10px !important; flex: 1 1 540px !important; min-width: 0 !important; max-width: 740px !important; }
+        .search-box { position: relative !important; flex: 1 1 300px !important; min-width: 0 !important; }
+        .search-box input { width: 100% !important; min-width: 0 !important; height: 42px !important; padding: 0 14px 0 38px !important; border-radius: 10px !important; border: 1px solid #cbd5e1 !important; font-size: 14px !important; outline: none !important; transition: border-color 0.2s, box-shadow 0.2s !important; box-sizing: border-box !important; background: #ffffff !important; color: #0f172a !important; }
+        .search-box input:focus { border-color: #64748b !important; box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15) !important; }
+        .search-box .search-icon { position: absolute !important; left: 12px !important; top: 50% !important; transform: translateY(-50%) !important; color: #94a3b8 !important; font-size: 20px !important; pointer-events: none !important; }
+        
+        .vault-total-box { display: inline-flex !important; align-items: center !important; gap: 8px !important; height: 42px !important; padding: 0 14px !important; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important; flex-shrink: 0 !important; user-select: none !important; white-space: nowrap !important; transition: all 0.2s ease !important; box-sizing: border-box !important; }
+        .vault-total-box:hover { border-color: #94a3b8 !important; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important; }
+        .vault-total-label { font-size: 13px !important; font-weight: 700 !important; color: #475569 !important; letter-spacing: 0.01em !important; }
+        .vault-total-badge { background: #f1f5f9 !important; color: #0f172a !important; font-size: 14px !important; font-weight: 800 !important; padding: 3px 10px !important; border-radius: 6px !important; border: 1px solid #cbd5e1 !important; display: inline-flex !important; align-items: baseline !important; }
+        .vault-total-sub { font-size: 11px !important; font-weight: 600 !important; color: #64748b !important; margin-left: 3px !important; }
+        
+        .select-filter { height: 42px !important; padding: 0 14px !important; border-radius: 10px !important; border: 1px solid #cbd5e1 !important; background: #fff !important; font-size: 13px !important; font-weight: 500 !important; color: #334155 !important; outline: none !important; cursor: pointer !important; box-sizing: border-box !important; }
 
         /* Table */
-        .table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .table-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .vault-table { width: 100%; min-width: 1050px; border-collapse: collapse; text-align: left; }
-        .vault-table th { background: #f8fafc; padding: 14px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-        .vault-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .vault-table th { background: #f8fafc; padding: 14px 16px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1.5px solid #cbd5e1; white-space: nowrap; }
+        .vault-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #cbd5e1; vertical-align: middle; }
         .vault-table tr:hover { background: #fafbff; }
         .vault-table tr:last-child td { border-bottom: none; }
+
+        /* Skeleton Loading */
+        .skeleton-row td { padding: 16px !important; border-bottom: 1px solid #e2e8f0 !important; }
+        .skeleton-cell {
+          height: 18px;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: skeletonShimmer 1.4s infinite ease-in-out;
+          border-radius: 4px;
+        }
+        @keyframes skeletonShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
 
         /* Badges */
         .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
@@ -586,11 +692,7 @@ export default function Vault() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '60px' }}>
-                      <LoadingIcon />
-                    </td>
-                  </tr>
+                  <TableSkeleton rows={7} cols={6} />
                 ) : filteredCustomers.length > 0 ? (
                   filteredCustomers.map(customer => {
                     let payBadgeClass = 'badge-noinv';
@@ -673,9 +775,9 @@ export default function Vault() {
                             </div>
                             {customer.totalAmount > 0 && (
                               <div style={{ fontSize: '12px', color: '#475569' }}>
-                                <strong>${customer.totalAmount.toLocaleString()}</strong>
+                                <strong>SAR {customer.totalAmount.toLocaleString()}</strong>
                                 {customer.totalBalance > 0 ? (
-                                  <span style={{ color: '#ef4444', marginLeft: '4px' }}>(Bal: ${customer.totalBalance.toLocaleString()})</span>
+                                  <span style={{ color: '#ef4444', marginLeft: '4px' }}>(Bal: SAR {customer.totalBalance.toLocaleString()})</span>
                                 ) : (
                                   <span style={{ color: '#16a34a', marginLeft: '4px' }}>(Settled)</span>
                                 )}

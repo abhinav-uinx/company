@@ -131,9 +131,34 @@ export default function MissionDetailsModal({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>Mission Details</h2>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b' }}>
-                Status: <span style={{ fontWeight: 600, color: '#2563eb' }}>{viewMission.status}</span>
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Status:</span>
+                {(() => {
+                  const s = viewMission.status || 'Pending';
+                  const isDone = s === 'Completed';
+                  const isInTransit = s === 'In-Transit';
+                  const isReturned = s === 'Returned';
+                  const bg = isDone ? '#ecfdf5' : isInTransit ? '#eff6ff' : isReturned ? '#f5f3ff' : '#fffbeb';
+                  const color = isDone ? '#047857' : isInTransit ? '#1d4ed8' : isReturned ? '#6d28d9' : '#b45309';
+                  const border = isDone ? '#a7f3d0' : isInTransit ? '#bfdbfe' : isReturned ? '#ddd6fe' : '#fde68a';
+                  return (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '2px 9px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: bg,
+                      color: color,
+                      border: `1px solid ${border}`
+                    }}>
+                      {s}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           <button
@@ -177,7 +202,7 @@ export default function MissionDetailsModal({
             </h3>
             <div className="mission-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Customer Name</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>Patient Name</div>
                 <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>
                   {viewMission.customers?.name || 'Unknown'}
                 </div>
@@ -353,11 +378,11 @@ export default function MissionDetailsModal({
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Ticket Cost</div>
-                <div style={{ color: '#0f172a', fontWeight: 500 }}>${viewMission.ticket_cost || 0}</div>
+                <div style={{ color: '#0f172a', fontWeight: 500 }}>SAR {viewMission.ticket_cost || 0}</div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Approx Total Cost</div>
-                <div style={{ color: '#16a34a', fontWeight: 600 }}>${viewMission.approx_cost || 0}</div>
+                <div style={{ color: '#16a34a', fontWeight: 600 }}>SAR {viewMission.approx_cost || 0}</div>
               </div>
             </div>
           </div>

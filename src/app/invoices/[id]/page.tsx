@@ -136,19 +136,19 @@ export default function InvoiceDetail() {
             {invoice.medical_escort_charges > 0 && (
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '16px 12px', fontWeight: 500 }}>Medical Escort Services</td>
-                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>${invoice.medical_escort_charges.toFixed(2)}</td>
+                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>SAR {invoice.medical_escort_charges.toFixed(2)}</td>
               </tr>
             )}
             {invoice.ticket_charges > 0 && (
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '16px 12px', fontWeight: 500 }}>Ticket Charges</td>
-                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>${invoice.ticket_charges.toFixed(2)}</td>
+                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>SAR {invoice.ticket_charges.toFixed(2)}</td>
               </tr>
             )}
             {invoice.documentation_charges > 0 && (
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '16px 12px', fontWeight: 500 }}>Documentation Charges</td>
-                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>${invoice.documentation_charges.toFixed(2)}</td>
+                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>SAR {invoice.documentation_charges.toFixed(2)}</td>
               </tr>
             )}
             {invoice.other_expenses_details && invoice.other_expenses_details.length > 0 ? (
@@ -159,7 +159,7 @@ export default function InvoiceDetail() {
                   <tr key={`other-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '16px 12px', fontWeight: 500 }}>{name}</td>
                     <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>
-                      {typeof item === 'object' ? `$${amount.toFixed(2)}` : '-'}
+                      {typeof item === 'object' ? `SAR ${amount.toFixed(2)}` : '-'}
                     </td>
                   </tr>
                 );
@@ -167,7 +167,7 @@ export default function InvoiceDetail() {
             ) : invoice.other_expenses > 0 ? (
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '16px 12px', fontWeight: 500 }}>Other Miscellaneous Expenses</td>
-                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>${invoice.other_expenses.toFixed(2)}</td>
+                <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 500 }}>SAR {invoice.other_expenses.toFixed(2)}</td>
               </tr>
             ) : null}
           </tbody>
@@ -176,32 +176,32 @@ export default function InvoiceDetail() {
         <div style={{ width: '280px', marginLeft: 'auto', paddingTop: '10px', fontSize: '0.9rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ color: '#475569' }}>Subtotal:</span>
-            <span style={{ fontWeight: 500 }}>${invoice.subtotal.toFixed(2)}</span>
+            <span style={{ fontWeight: 500 }}>SAR {invoice.subtotal.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ color: '#475569' }}>VAT / Tax ({invoice.tax_vat_percent}%):</span>
-            <span style={{ fontWeight: 500 }}>+ ${ (invoice.subtotal * (invoice.tax_vat_percent / 100)).toFixed(2) }</span>
+            <span style={{ fontWeight: 500 }}>+ SAR { (invoice.subtotal * (invoice.tax_vat_percent / 100)).toFixed(2) }</span>
           </div>
           {invoice.discount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ color: '#475569' }}>Discount:</span>
-              <span style={{ fontWeight: 500, color: '#059669' }}>- ${invoice.discount.toFixed(2)}</span>
+              <span style={{ fontWeight: 500, color: '#059669' }}>- SAR {invoice.discount.toFixed(2)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '12px 0', borderTop: '2px solid #cbd5e1', borderBottom: '2px solid #cbd5e1', fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>
             <span>TOTAL AMOUNT:</span>
-            <span>${invoice.total_amount.toFixed(2)}</span>
+            <span>SAR {invoice.total_amount.toFixed(2)}</span>
           </div>
           
           {invoice.status !== 'Paid' && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', color: '#166534', fontWeight: 500 }}>
                 <span>Advance Paid:</span>
-                <span>${invoice.advance_payment.toFixed(2)}</span>
+                <span>SAR {invoice.advance_payment.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #94a3b8', fontWeight: 800, fontSize: '1.05rem', color: invoice.balance_amount > 0 ? '#b91c1c' : '#0f172a' }}>
                 <span>BALANCE DUE:</span>
-                <span>${invoice.balance_amount.toFixed(2)}</span>
+                <span>SAR {invoice.balance_amount.toFixed(2)}</span>
               </div>
             </>
           )}

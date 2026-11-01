@@ -481,7 +481,7 @@ export default function GenerateSalarySlipModal({
           {/* Basic Salary */}
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              Basic Salary (USD $) <span style={{ color: '#ef4444' }}>*</span>
+              Basic Salary (SAR) <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
               <span
@@ -491,10 +491,11 @@ export default function GenerateSalarySlipModal({
                   top: '50%',
                   transform: 'translateY(-50%)',
                   color: '#64748b',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  fontSize: '0.85rem'
                 }}
               >
-                $
+                SAR
               </span>
               <input
                 type="number"
@@ -507,7 +508,7 @@ export default function GenerateSalarySlipModal({
                 placeholder="3000.00"
                 style={{
                   width: '100%',
-                  padding: '10px 14px 10px 32px',
+                  padding: '10px 14px 10px 48px',
                   borderRadius: '8px',
                   border: '1px solid #cbd5e1',
                   fontSize: '0.95rem',

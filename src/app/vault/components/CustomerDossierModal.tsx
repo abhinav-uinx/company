@@ -153,7 +153,7 @@ export default function CustomerDossierModal({
             className="dossier-modal-header"
             style={{
               padding: '20px 24px',
-              borderBottom: '1px solid #e2e8f0',
+              borderBottom: '1px solid #cbd5e1',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -268,21 +268,21 @@ export default function CustomerDossierModal({
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Total Invoiced</div>
                 <div style={{ color: '#0f172a', fontWeight: 700, fontSize: '0.95rem', marginTop: '4px' }}>
-                  ${totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  SAR {totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
               </div>
 
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Advance / Paid</div>
                 <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.95rem', marginTop: '4px' }}>
-                  ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  SAR {totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
               </div>
 
               <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Remaining Balance</div>
                 <div style={{ color: totalBalance > 0 ? '#e11d48' : '#059669', fontWeight: 700, fontSize: '0.95rem', marginTop: '4px' }}>
-                  ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  SAR {totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
@@ -315,13 +315,13 @@ export default function CustomerDossierModal({
                         <strong>Invoice #{inv.id.substring(0, 8)}</strong> &middot;{' '}
                         <span style={{ color: '#64748b' }}>{new Date(inv.created_at).toLocaleDateString()}</span>
                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                          Subtotal: ${inv.subtotal} | Tax/VAT: {inv.tax_vat_percent}% | Disc: ${inv.discount}
+                          Subtotal: SAR {inv.subtotal} | Tax/VAT: {inv.tax_vat_percent}% | Disc: SAR {inv.discount}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>Total: ${inv.total_amount}</span>{' '}
-                          <span style={{ color: '#64748b', fontSize: '11px' }}>(Bal: ${inv.balance_amount})</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>Total: SAR {inv.total_amount}</span>{' '}
+                          <span style={{ color: '#64748b', fontSize: '11px' }}>(Bal: SAR {inv.balance_amount})</span>
                         </div>
                         <Link
                           href={`/invoices/${inv.id}`}
@@ -371,7 +371,7 @@ export default function CustomerDossierModal({
                     }}
                   >
                     <span>
-                      <strong>${p.amount}</strong> &middot; {p.payment_method || 'Direct'} &middot; {p.remarks || 'Receipt logged'}
+                      <strong>SAR {p.amount}</strong> &middot; {p.payment_method || 'Direct'} &middot; {p.remarks || 'Receipt logged'}
                     </span>
                     <span>{new Date(p.payment_date || Date.now()).toLocaleDateString()}</span>
                   </div>
@@ -871,7 +871,7 @@ export default function CustomerDossierModal({
           className="dossier-modal-footer"
           style={{
             padding: '16px 24px',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid #cbd5e1',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',

@@ -1,29 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { getSession, logout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Header from '@/app/admin/dashboard/header';
+import { useAuth } from '@/components/AuthGuard';
 
 export default function GeneralFormsPage() {
   const router = useRouter();
-  const [userName, setUserName] = useState('Loading...');
-  const [userRole, setUserRole] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const session = await getSession();
-      if (!session) { router.replace('/login'); return; }
-      setUserName(session.username as string || 'User');
-      setUserRole(session.role as string || '');
-    };
-    fetchUser();
-  }, [router]);
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
+  const { role, isFolderAllowed } = useAuth();
+  const userRole = role || '';
 
   const otherForms = [
     { name: 'Patient Medical Consent', desc: 'Standard authorization for medical transport' },
@@ -34,14 +18,32 @@ export default function GeneralFormsPage() {
     { name: 'Handover Protocol', desc: 'Hospital-to-hospital transfer notes' }
   ];
 
+  if (role === 'employee' && !isFolderAllowed('forms')) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '80px auto', textAlign: 'center', background: '#fff', padding: '40px 30px', borderRadius: '16px', border: '1px solid #fee2e2', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>block</span>
+        </div>
+        <h2 style={{ fontSize: '1.5rem', color: '#0f172a', margin: '0 0 10px 0' }}>Access Prohibited</h2>
+        <p style={{ color: '#64748b', fontSize: '0.95rem', margin: '0 0 25px 0', lineHeight: 1.5 }}>
+          Your account does not have permission to access the <strong>Document Hub/forms</strong> folder. Please contact an administrator.
+        </p>
+        <Link href="/user/dashboard" style={{ background: '#4F5DFF', color: '#fff', textDecoration: 'none', padding: '10px 22px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         .forms-container { max-width: 1300px; margin: 0 auto; padding: 40px 20px; }
         .forms-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding-bottom: 10px; }
         .forms-header h1 { font-family: 'Manrope', sans-serif; font-size: 2.2rem; color: #0f172a; font-weight: 800; margin: 0; }
-        .back-btn { display: inline-flex; align-items: center; gap: 8px; color: #3b82f6; text-decoration: none; font-weight: 600; margin-bottom: 15px; font-size: 0.95rem; }
-        .back-btn:hover { text-decoration: underline; }
+        .back-btn { text-decoration: none; color: #334155; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 12px 6px 8px; display: inline-flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; margin-bottom: 10px; }
+        .back-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
         
         /* Tabs */
         .tabs-nav { display: flex; gap: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px; }
@@ -49,8 +51,6 @@ export default function GeneralFormsPage() {
         .tab-btn:hover { color: #334155; }
         .tab-btn.active { color: #3b82f6; }
         .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background: #3b82f6; border-radius: 3px 3px 0 0; }
-        .back-btn { text-decoration: none; color: #334155; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 6px 12px 6px 8px; display: inline-flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; margin-bottom: 10px; }
-        .back-btn:hover { background: #f4f5f7; border-color: #d1d5db; }
         
         /* Other Forms List */
         .other-forms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
@@ -62,54 +62,16 @@ export default function GeneralFormsPage() {
         .other-form-icon { color: #94a3b8; transition: color 0.2s; background: #f8fafc; padding: 12px; border-radius: 50%; }
         .other-form-card:hover .other-form-icon { color: #fff; background: #3b82f6; }
 
-        /* Top Navigation */
-        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; zIndex: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.2rem; color: #0f172a; letter-spacing: -0.02em; }
-        .logo-area img { height: 35px; width: auto; }
-        .nav-actions { display: flex; align-items: center; gap: 20px; position: relative; }
-        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: background 0.2s; }
-        .user-profile:hover { background: #f8fafc; }
-        .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 0.9rem; }
-        .user-info { display: flex; flex-direction: column; }
-        .user-name { font-size: 0.85rem; font-weight: 600; color: #1e293b; }
-        .user-role-text { font-size: 0.75rem; color: #64748b; text-transform: capitalize; }
-        .dropdown-menu { position: absolute; top: 110%; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); width: 200px; padding: 8px; display: none; flex-direction: column; gap: 4px; z-index: 10; }
-        .dropdown-menu.show { display: flex; }
-        .dropdown-item { padding: 10px 12px; border-radius: 6px; color: #334155; font-size: 0.9rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 10px; background: none; border: none; text-align: left; transition: all 0.2s; text-decoration: none; }
-        .dropdown-item:hover { background: #f1f5f9; color: #0f172a; }
-        .dropdown-item.danger { color: #ef4444; }
-        .dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; }
+        @media (max-width: 768px) {
+          .forms-container { padding: 16px 12px calc(75px + env(safe-area-inset-bottom)) !important; }
+          .forms-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+          .forms-header h1 { font-size: 1.5rem !important; }
+          .tabs-nav { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; white-space: nowrap !important; }
+          .other-forms-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+        }
       ` }} />
 
-      <header className="top-nav">
-        <div className="logo-area">
-          <img src="/Assets/Company logo/main_logo.png" alt="MEDESCORT INTERNATIONAL" />
-        </div>
-        <div className="nav-actions">
-          <div className="user-profile" onClick={() => setMenuOpen(!menuOpen)}>
-            <div className="user-info" style={{ textAlign: 'right' }}>
-              <span className="user-name">{userName}</span>
-              <span className="user-role-text">{userRole}</span>
-            </div>
-            <div className="avatar">
-              {userName.substring(0, 2).toUpperCase()}
-            </div>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#64748b' }}>expand_more</span>
-          </div>
-
-          {menuOpen && (
-            <div className="dropdown-menu show">
-              <Link href={userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard'} className="dropdown-item">
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>dashboard</span> Dashboard
-              </Link>
-              <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }} />
-              <button onClick={handleLogout} className="dropdown-item danger">
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>logout</span> Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header />
 
       <main className="forms-container">
         <div className="forms-header">
@@ -125,8 +87,12 @@ export default function GeneralFormsPage() {
         </div>
 
         <div className="tabs-nav">
-          <Link href="/forms" className="tab-btn" style={{ textDecoration: 'none' }}>MEDIF Forms</Link>
-          <button className="tab-btn active">General Forms</button>
+          <Link href="/forms" style={{ textDecoration: 'none' }}>
+            <button className="tab-btn">MEDIF Forms</button>
+          </Link>
+          <Link href="/forms/general" style={{ textDecoration: 'none' }}>
+            <button className="tab-btn active">General Forms</button>
+          </Link>
         </div>
 
         <div style={{ marginTop: '20px' }}>
@@ -148,9 +114,3 @@ export default function GeneralFormsPage() {
     </>
   );
 }
-
-
-
-
-
-

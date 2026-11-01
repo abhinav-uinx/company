@@ -131,21 +131,21 @@ export default function SalarySlipPage() {
           <thead>
             <tr style={{ background: '#0f172a', color: 'white' }}>
               <th style={{ padding: '12px 15px', textAlign: 'left', borderRadius: '6px 0 0 6px' }}>Description</th>
-              <th style={{ padding: '12px 15px', textAlign: 'right' }}>Earnings (USD)</th>
-              <th style={{ padding: '12px 15px', textAlign: 'right', borderRadius: '0 6px 6px 0' }}>Deductions (USD)</th>
+              <th style={{ padding: '12px 15px', textAlign: 'right' }}>Earnings (SAR)</th>
+              <th style={{ padding: '12px 15px', textAlign: 'right', borderRadius: '0 6px 6px 0' }}>Deductions (SAR)</th>
             </tr>
           </thead>
           <tbody>
             <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
               <td style={{ padding: '15px', fontWeight: 500 }}>Basic Salary</td>
-              <td style={{ padding: '15px', textAlign: 'right', fontWeight: 600 }}>${parseFloat(slip.basic_salary).toFixed(2)}</td>
+              <td style={{ padding: '15px', textAlign: 'right', fontWeight: 600 }}>SAR {parseFloat(slip.basic_salary).toFixed(2)}</td>
               <td style={{ padding: '15px', textAlign: 'right', color: '#64748b' }}>-</td>
             </tr>
             {parseFloat(slip.advance_payment) > 0 && (
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '15px', fontWeight: 500 }}>Advance Payment Recovery</td>
                 <td style={{ padding: '15px', textAlign: 'right', color: '#64748b' }}>-</td>
-                <td style={{ padding: '15px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>${parseFloat(slip.advance_payment).toFixed(2)}</td>
+                <td style={{ padding: '15px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>SAR {parseFloat(slip.advance_payment).toFixed(2)}</td>
               </tr>
             )}
             {parseFloat(slip.deductions) > 0 && (
@@ -153,7 +153,7 @@ export default function SalarySlipPage() {
                 <tr style={{ borderBottom: slip.deduction_comment ? 'none' : '1px solid #e2e8f0' }}>
                   <td style={{ padding: '15px 15px 5px 15px', fontWeight: 500 }}>Other Deductions / Fines</td>
                   <td style={{ padding: '15px 15px 5px 15px', textAlign: 'right', color: '#64748b' }}>-</td>
-                  <td style={{ padding: '15px 15px 5px 15px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>${parseFloat(slip.deductions).toFixed(2)}</td>
+                  <td style={{ padding: '15px 15px 5px 15px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>SAR {parseFloat(slip.deductions).toFixed(2)}</td>
                 </tr>
                 {slip.deduction_comment && (
                   <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -169,7 +169,7 @@ export default function SalarySlipPage() {
             <tr>
               <td style={{ padding: '20px 15px 15px 15px', textAlign: 'right', fontWeight: 700, fontSize: '1.1rem' }}>Net Pay</td>
               <td colSpan={2} style={{ padding: '20px 15px 15px 15px', textAlign: 'right', fontWeight: 800, fontSize: '1.4rem', color: '#0ea5e9', borderTop: '2px solid #0f172a' }}>
-                ${parseFloat(slip.net_salary).toFixed(2)}
+                SAR {parseFloat(slip.net_salary).toFixed(2)}
               </td>
             </tr>
           </tbody>

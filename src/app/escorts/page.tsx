@@ -66,23 +66,27 @@ export default function EscortsList() {
     return '';
   };
 
-  const updateStatus = async (id: string, newStatus: string) => {
-    if (newStatus === 'Pending') {
-      setPendingMissionId(id);
-      const mission = missions.find(m => m.id === id);
-      let existingReasons: string[] = [];
-      if (mission && mission.reasons) {
-         try {
-           const parsed = JSON.parse(mission.reasons);
-           if (Array.isArray(parsed)) existingReasons = parsed;
-           else existingReasons = [mission.reasons];
-         } catch(e) {
-           existingReasons = [mission.reasons];
-         }
+  const openPendingModal = (mission: any) => {
+    setPendingMissionId(mission.id);
+    let existingReasons: string[] = [];
+    if (mission && mission.reasons) {
+      try {
+        const parsed = JSON.parse(mission.reasons);
+        if (Array.isArray(parsed)) existingReasons = parsed;
+        else existingReasons = [mission.reasons];
+      } catch {
+        existingReasons = [mission.reasons];
       }
-      setPendingReasons(existingReasons);
-      setPendingReasonInput('');
-      setShowPendingModal(true);
+    }
+    setPendingReasons(existingReasons);
+    setPendingReasonInput('');
+    setShowPendingModal(true);
+  };
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    const mission = missions.find(m => m.id === id);
+    if (newStatus === 'Pending') {
+      if (mission) openPendingModal(mission);
     } else {
       // Optimistic update
       setMissions(prev => {
@@ -166,7 +170,7 @@ export default function EscortsList() {
           <div className={styles.tableWrapper}><table className={styles.table}>
             <thead>
               <tr>
-                <th>Customer</th>
+                <th>Patient</th>
                 <th>Route</th>
                 <th>Flight Date</th>
                 <th>Assigned Escort</th>
@@ -180,7 +184,7 @@ export default function EscortsList() {
               ) : missions.length > 0 ? (
                 missions.map(mission => (
                   <tr key={mission.id}>
-                    <td style={{ fontWeight: 500 }}>{mission.customers?.name || 'Unknown Customer'}</td>
+                    <td style={{ fontWeight: 500 }}>{mission.customers?.name || 'Unknown Patient'}</td>
                     <td>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: '#0f172a' }}>
                         <span>{mission.from_country || '-'}</span>
@@ -205,23 +209,21 @@ export default function EscortsList() {
                         const isReturned = statusVal === 'Returned';
 
                         let statusClass = styles.statusPending;
-                        let statusIcon: React.ReactNode = null;
+                        let statusIcon: React.ReactNode = <span className={styles.pulseDot} />;
                         let displayLabel = 'Pending';
 
                         if (isInTransit) {
                           statusClass = styles.statusInTransit;
-                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#2563eb' }}>flight_takeoff</span>;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#2563eb' }}>flight_takeoff</span>;
                           displayLabel = 'In-Transit';
                         } else if (isCompleted) {
                           statusClass = styles.statusCompleted;
-                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#059669', fontVariationSettings: "'FILL' 1" }}>check_circle</span>;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#059669', fontVariationSettings: "'FILL' 1" }}>check_circle</span>;
                           displayLabel = 'Completed';
                         } else if (isReturned) {
                           statusClass = styles.statusReturned;
-                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#7c3aed' }}>flight_land</span>;
+                          statusIcon = <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#7c3aed' }}>flight_land</span>;
                           displayLabel = 'Returned';
-                        } else {
-                          displayLabel = 'Pending';
                         }
 
                         let reasonCount = 0;
@@ -236,45 +238,39 @@ export default function EscortsList() {
                         }
 
                         return (
-                          <div
-                            className={`${styles.statusPill} ${statusClass}`}
-                            title={`Click to change status${isPending && reasonCount > 0 ? ` (${reasonCount} reason${reasonCount > 1 ? 's' : ''} recorded)` : ''}`}
-                          >
-                            {statusIcon}
-                            <span style={{ fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.01em', lineHeight: 1 }}>
-                              {displayLabel}
-                              {isPending && reasonCount > 0 ? ` (${reasonCount})` : ''}
-                            </span>
-                            <span
-                              className="material-symbols-outlined"
-                              style={{
-                                fontSize: '13px',
-                                opacity: 0.7,
-                                marginLeft: '0px'
-                              }}
+                          <div className={styles.statusWrapper}>
+                            <div
+                              className={`${styles.statusBox} ${statusClass}`}
+                              title="Click to change status"
                             >
-                              expand_more
-                            </span>
+                              {statusIcon}
+                              <span className={styles.statusLabel}>{displayLabel}</span>
+                              <span className={`material-symbols-outlined ${styles.statusChevron}`}>expand_more</span>
 
-                            {/* Full-coverage native select overlay */}
-                            <select
-                              value={isInTransit ? 'In-Transit' : isCompleted ? 'Completed' : isReturned ? 'Returned' : 'Pending'}
-                              onChange={(e) => updateStatus(mission.id, e.target.value)}
-                              aria-label="Change status"
-                              style={{
-                                position: 'absolute',
-                                inset: 0,
-                                width: '100%',
-                                height: '100%',
-                                opacity: 0,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <option value="Pending">Pending</option>
-                              <option value="In-Transit">In-Transit</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Returned">Returned</option>
-                            </select>
+                              <select
+                                value={isInTransit ? 'In-Transit' : isCompleted ? 'Completed' : isReturned ? 'Returned' : 'Pending'}
+                                onChange={(e) => updateStatus(mission.id, e.target.value)}
+                                aria-label="Change status"
+                                className={styles.statusSelect}
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="In-Transit">In-Transit</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Returned">Returned</option>
+                              </select>
+                            </div>
+
+                            {isPending && reasonCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => openPendingModal(mission)}
+                                className={styles.reasonBtn}
+                                title={`Click to view/edit ${reasonCount} pending notes`}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#b45309' }}>note_alt</span>
+                                <span>{reasonCount}</span>
+                              </button>
+                            )}
                           </div>
                         );
                       })()}

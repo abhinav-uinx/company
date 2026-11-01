@@ -11,6 +11,7 @@ export default function AttendancePage(props: any) {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [checkoutData, setCheckoutData] = useState<{id?: string, employee_id?: string, iqama?: string, date?: string, time: string} | null>(null);
   const [showAlertModal, setShowAlertModal] = useState(false);
@@ -188,6 +189,29 @@ export default function AttendancePage(props: any) {
     }
   };
 
+  const filteredAttendance = attendance.filter((a) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const name = (a.employees?.name || '').toLowerCase();
+    const iqama = (a.employee_iqama || '').toLowerCase();
+    const empId = (a.employee_id || '').toLowerCase();
+    const date = (a.date || '').toLowerCase();
+    const status = (a.status || '').toLowerCase();
+    const leaveType = (a.leave_type || '').toLowerCase();
+    const checkIn = (a.check_in || '').toLowerCase();
+    const checkOut = (a.check_out || '').toLowerCase();
+    return (
+      name.includes(q) ||
+      iqama.includes(q) ||
+      empId.includes(q) ||
+      date.includes(q) ||
+      status.includes(q) ||
+      leaveType.includes(q) ||
+      checkIn.includes(q) ||
+      checkOut.includes(q)
+    );
+  });
+
   return (
     <div className={embedded ? "" : styles.container}>
 
@@ -231,10 +255,78 @@ export default function AttendancePage(props: any) {
       )}
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>Daily employee check-in and check-out attendance records.</p>
-        <button onClick={handleQuickCheckInClick} style={{ background: '#4F5DFF', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>how_to_reg</span> Quick Check-in
-        </button>
+        <div>
+          <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>Daily employee check-in and check-out attendance records.</p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative' }}>
+            <span
+              className="material-symbols-outlined"
+              style={{
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+                fontSize: '18px',
+                pointerEvents: 'none'
+              }}
+            >
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Search employee, iqama, date, status..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: '8px 32px 8px 34px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.88rem',
+                outline: 'none',
+                minWidth: '250px',
+                transition: 'all 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#4F5DFF';
+                e.target.style.boxShadow = '0 0 0 3px rgba(79, 93, 255, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#cbd5e1';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Clear search"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            )}
+          </div>
+
+          <button onClick={handleQuickCheckInClick} style={{ background: '#4F5DFF', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', boxShadow: '0 1px 2px rgba(79, 93, 255, 0.2)' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>how_to_reg</span> Quick Check-in
+          </button>
+        </div>
       </div>
 
       <div className="tableWrapper" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -252,8 +344,8 @@ export default function AttendancePage(props: any) {
         <tbody>
           {loading ? (
             <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Loading Attendance Records...</td></tr>
-          ) : attendance.length > 0 ? (
-            attendance.map((a, idx) => (
+          ) : filteredAttendance.length > 0 ? (
+            filteredAttendance.map((a, idx) => (
               <tr key={a.id || `${a.employee_id || a.employee_iqama}-${a.date}-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '12px 16px' }}><strong>{a.date}</strong></td>
                 <td style={{ padding: '12px 16px' }}>
@@ -312,7 +404,11 @@ export default function AttendancePage(props: any) {
               </tr>
             ))
           ) : (
-            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>No attendance records found.</td></tr>
+            <tr>
+              <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                {searchQuery.trim() ? `No matching attendance records found for "${searchQuery}".` : 'No attendance records found.'}
+              </td>
+            </tr>
           )}
         </tbody>
       </table>

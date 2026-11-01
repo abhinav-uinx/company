@@ -40,7 +40,7 @@ export default function DepartmentFilter({
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#4F5DFF' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#64748b' }}>
           filter_list
         </span>
         <span>Department: <strong>{activeFilter}</strong></span>
@@ -69,7 +69,7 @@ export default function DepartmentFilter({
               <input
                 type="radio"
                 name="dept-filter"
-                style={{ width: 'auto', cursor: 'pointer', accentColor: '#4F5DFF' }}
+                style={{ width: 'auto', cursor: 'pointer', accentColor: '#334155' }}
                 checked={activeFilter === 'All'}
                 onChange={() => onSelect('All')}
               />
@@ -83,7 +83,7 @@ export default function DepartmentFilter({
                 <input
                   type="radio"
                   name="dept-filter"
-                  style={{ width: 'auto', cursor: 'pointer', accentColor: '#4F5DFF' }}
+                  style={{ width: 'auto', cursor: 'pointer', accentColor: '#334155' }}
                   checked={activeFilter === dept}
                   onChange={() => onSelect(dept)}
                 />
