@@ -174,6 +174,7 @@ export default function Vault() {
   };
 
   useEffect(() => {
+    let cachePresent = Boolean(vaultMemoryCache && vaultMemoryCache.customers.length > 0);
     // If not in memory, check sessionStorage for instant zero-wait load
     if (!vaultMemoryCache && typeof window !== 'undefined') {
       try {
@@ -188,13 +189,15 @@ export default function Vault() {
             if (parsed.missions) setMissions(parsed.missions);
             if (parsed.employees) setEmployees(parsed.employees);
             setLoading(false);
+            cachePresent = true;
           }
         }
       } catch {}
     }
 
     // Fetch fresh data (silently in background if cache is already present)
-    fetchAllVaultData(hasCache);
+    fetchAllVaultData(cachePresent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Modal accessibility: background scroll lock and Escape key dismiss

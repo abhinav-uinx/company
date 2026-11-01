@@ -153,6 +153,7 @@ export default function FullscreenFileViewer({
         }}
       >
         {isImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={fileSource}
             alt={file.name || 'Fullscreen preview'}

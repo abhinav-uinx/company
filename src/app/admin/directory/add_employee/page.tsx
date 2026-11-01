@@ -7,10 +7,6 @@ import { supabaseAuth } from '@/lib/supabase';
 import AdminHeader from '@/app/admin/components/AdminHeader';
 import { notifyPermissionsChanged } from '@/lib/permissionsSync';
 
-interface AddEmployeeProps {
-  embedded?: boolean;
-}
-
 interface ModuleOption {
   id: string;
   name: string;
@@ -63,7 +59,8 @@ const SYSTEM_MODULES: ModuleOption[] = [
   }
 ];
 
-export default function AddEmployee({ embedded = false }: AddEmployeeProps) {
+export default function AddEmployee(props: any) {
+  const embedded = props?.embedded ?? false;
   const router = useRouter();
 
   // Form State

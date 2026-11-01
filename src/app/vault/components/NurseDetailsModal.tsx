@@ -70,6 +70,7 @@ export default function NurseDetailsModal({ selectedNurse, onClose }: NurseDetai
               overflow: 'hidden', flexShrink: 0
             }}>
               {selectedNurse.photo_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={selectedNurse.photo_url} alt={selectedNurse.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 (selectedNurse.name || 'N').charAt(0).toUpperCase()
