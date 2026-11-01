@@ -4,8 +4,11 @@ import { hashPassword, isBcryptHash } from '@/lib/passwords';
 import { sanitizeObject } from '@/lib/security';
 import { logSecurityEvent } from '@/lib/securityAudit';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY!;
+const DEFAULT_SUPABASE_URL = 'https://umwkgcbfvshsvdpqizyq.supabase.co';
+const DEFAULT_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtd2tnY2JmdnNoc3ZkcHFpenlxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODk3NzIyMSwiZXhwIjoyMTA0NTUzMjIxfQ.NwuDdMbB658MD4x6XVwhmPB_iBjHgfJgj1cPHSrqTr8';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || DEFAULT_SERVICE_KEY;
 
 export async function GET(req: NextRequest, { params }: { params: { path?: string[] } }) {
   return handleRequest(req, params.path);
@@ -101,7 +104,8 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
   // 2. Reconstruct the Supabase URL
   const path = pathArray ? pathArray.join('/') : '';
   const searchParams = req.nextUrl.search;
-  const targetUrl = `${SUPABASE_URL}/${path}${searchParams}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const targetUrl = `${baseUrl}/${path}${searchParams}`;
 
   // Check GET cache for instant response (<1ms)
   if (req.method === 'GET') {
@@ -118,9 +122,10 @@ async function handleRequest(req: NextRequest, pathArray?: string[]) {
   }
 
   // 3. Forward headers, injecting Service Role Key safely from server
+  const activeKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || SUPABASE_SERVICE_KEY || DEFAULT_SERVICE_KEY;
   const headers = new Headers(req.headers);
-  headers.set('apikey', SUPABASE_SERVICE_KEY);
-  headers.set('Authorization', `Bearer ${SUPABASE_SERVICE_KEY}`);
+  headers.set('apikey', activeKey);
+  headers.set('Authorization', `Bearer ${activeKey}`);
   headers.delete('host');
 
   const fetchOptions: RequestInit = {
