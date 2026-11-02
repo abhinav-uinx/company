@@ -743,28 +743,35 @@ export default function Vault() {
                         {/* 4. Service */}
                         <td>
                           {customer.servicesList && customer.servicesList.length > 0 ? (
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                              {customer.servicesList.map((sName: string, sIdx: number) => {
-                                const isMed = sName.toLowerCase().includes('medical');
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {customer.servicesList.map((name: string, idx: number) => {
+                                const isMed = name.toLowerCase().includes('medical');
                                 return (
                                   <span
-                                    key={sIdx}
-                                    className="badge badge-service"
+                                    key={idx}
                                     style={{
-                                      background: isMed ? '#eef2ff' : '#f0f9ff',
+                                      background: isMed ? '#e0e7ff' : '#e0f2fe',
                                       color: isMed ? '#4338ca' : '#0369a1',
-                                      borderColor: isMed ? '#c7d2fe' : '#bae6fd'
+                                      border: isMed ? '1px solid #c7d2fe' : '1px solid #bae6fd',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
                                     }}
                                   >
-                                    {sName}
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                      {isMed ? 'medical_services' : 'folder_shared'}
+                                    </span>
+                                    {name}
                                   </span>
                                 );
                               })}
                             </div>
                           ) : (
-                            <span className="badge badge-service">
-                              {customer.serviceName}
-                            </span>
+                            <span style={{ color: '#94a3b8' }}>Unassigned</span>
                           )}
                         </td>
 
